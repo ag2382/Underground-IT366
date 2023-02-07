@@ -1,7 +1,10 @@
 #include <SDL.h>
+#include "simple_logger.h"
 #include "gf2d_graphics.h"
 #include "gf2d_sprite.h"
-#include "simple_logger.h"
+#include "entity.h"
+
+void goomba_think(Entity* self);
 
 int main(int argc, char * argv[])
 {
@@ -9,6 +12,7 @@ int main(int argc, char * argv[])
     int done = 0;
     const Uint8 * keys;
     Sprite *sprite;
+    Entity *ent;
     
     int mx,my;
     float mf = 0;
@@ -28,12 +32,28 @@ int main(int argc, char * argv[])
         0);
     gf2d_graphics_set_frame_delay(16);
     gf2d_sprite_init(1024);
+    entity_manager_init(1024);
     SDL_ShowCursor(SDL_DISABLE);
     
     /*demo setup*/
     sprite = gf2d_sprite_load_image("images/backgrounds/bg_flat.png");
     mouse = gf2d_sprite_load_all("images/pointer.png",32,32,16,0);
     /*main game loop*/
+
+    ent = entity_new();
+    if (ent)
+    {
+        slog("The goomba has spawned");
+        ent->sprite = gf2d_sprite_load_all(
+            "images/goomba.png",
+            64,
+            64,
+            2,
+            0);
+        ent->think = goomba_think;
+    }
+
+    // graphics -> sprites -> entities -> things
     while(!done)
     {
         SDL_PumpEvents();   // update SDL's internal event structures
@@ -41,13 +61,16 @@ int main(int argc, char * argv[])
         /*update things here*/
         SDL_GetMouseState(&mx,&my);
         mf+=0.1;
-        if (mf >= 16.0)mf = 0;
+        if (mf >= 2.0) mf = 0;
+        entity_think_all();
+        entity_update_all();
         
         
         gf2d_graphics_clear_screen();// clears drawing buffers
         // all drawing should happen betweem clear_screen and next_frame
             //backgrounds drawn first
             gf2d_sprite_draw_image(sprite,vector2d(0,0));
+            entity_draw_all();
             
             //UI elements last
             gf2d_sprite_draw(
@@ -68,4 +91,21 @@ int main(int argc, char * argv[])
     slog("---==== END ====---");
     return 0;
 }
+
+void goomba_think(Entity* self)
+{
+    int mx, my;
+    
+    // place initial position of goomba
+    self->velocity.x = 0.5;
+    slog("goomba x-pos: %i", self->position.x);
+    self->position.y = 610;
+    // if (!self) return;
+    //SDL_GetMouseState(&mx, &my);
+    //if (mx < self->position.x)self->velocity.x = -0.1;
+    //if (mx > self->position.x)self->velocity.x = 0.1;
+    //if (my < self->position.y)self->velocity.y = -0.1;
+    //if (my > self->position.y)self->velocity.y = 0.1;
+}
+
 /*eol@eof*/
