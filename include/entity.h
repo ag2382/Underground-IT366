@@ -1,61 +1,74 @@
 #ifndef __ENTITY_H__
 #define __ENTITY_H__
 
+#include "gfc_text.h"
 #include "gfc_types.h"
 #include "gfc_vector.h"
 #include "gf2d_sprite.h"
 
-typedef struct Entity_S 
+typedef struct Entity_S
 {
-	Bool		_inuse;  // checks if current entity is in use
-	Sprite		*sprite;  // sprites associated with said entity
-	float		frame;  // each individual sprite is a frame
-	Vector2D	position;  // position of the sprite
-	Vector2D	velocity;
-	Vector2D	acceleration;
-	void (*think)(struct Entity_S* self);
-} Entity;
+    Bool    _inuse;
+    Sprite* sprite;
+    float   frame;
+    float   rotation;
+    float   speed;
+    Vector2D drawOffset;
 
-/*
-* @brief initialize the internal manager for the entity system
-* @note this will automatically queue up the close function for program exit
-* @param max this is the maximum number of supported entities at a given time
-*/
-void entity_manager_init(Uint32 max);
+    Vector2D position;
+    Vector2D velocity;
+    Vector2D acceleration;
 
-/*
-* @brief allocate & initialize a new entity
-* @return NULL if there are no entities left, an empty entity otherwise
-* 
-*/
-Entity *entity_new();
+    struct Entity_S* parent;
 
+    void (*think)(struct Entity_S* self);
+    int (*update)(struct Entity_S* self);
+    void (*draw)(struct Entity_S* self);
+    void (*free_entity)(struct Entity_S* self); //cleanup of custom data if defined
+    void* data;
 
-/*
-* @brief free a previously allocated entity
-* @param enet the enetity to free
-*/
-void entity_free(Entity *ent);
+    TextLine name;
+    float health;
 
+}Entity;
 
 /**
-* @brief free all allocated entities
-*/
+ * @brief initialize the internal manager for the entity system
+ * @note this will automatically queue up the close function for program exit
+ * @param max this is the maximum number of supported entities at a given time
+ */
+void entity_manager_init(Uint32 max);
+
+/**
+ * @brief alloate an initialize a new entity
+ * @return NULL if there are no entities left, an empty entity otherwise
+ */
+Entity* entity_new();
+
+/**
+ * @brief free a previously allocated entity
+ * @param ent the entity to free
+ */
+void entity_free(Entity* ent);
+
+/**
+ * @brief free all allocated entities
+ */
 void entity_free_all();
 
 /**
-* @brief draw all active entities if they have graphics
-*/
+ * @brief draw all active entities if they have graphics
+ */
 void entity_draw_all();
 
 /**
-* @brief update all active entities
-*/
+ * @brief update all active entities
+ */
 void entity_update_all();
 
-/*
-* @brief call all the think functions for the entities, if they have one
-*/
+/**
+ * @brief call all the think functions for the entities, if they have one
+ */
 void entity_think_all();
 
 #endif

@@ -99,8 +99,8 @@ void entity_draw_all()
 void entity_update(Entity* ent)
 {
     if (!ent)return;
-    ent->frame += 0.1;
-    if (ent->frame >= 2)ent->frame = 0;  // handles each frame of designated sprite row
+    ent->frame += 0.12;
+    if (ent->frame >= 9)ent->frame = 0;  // handles each frame of designated sprite row
     vector2d_add(ent->position, ent->position, ent->velocity);
 }
 

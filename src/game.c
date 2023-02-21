@@ -3,8 +3,9 @@
 #include "gf2d_graphics.h"
 #include "gf2d_sprite.h"
 #include "entity.h"
+#include "player.h"
 
-void goomba_think(Entity* self);
+void spelunky_think(Entity* self);
 
 int main(int argc, char * argv[])
 {
@@ -40,18 +41,21 @@ int main(int argc, char * argv[])
     mouse = gf2d_sprite_load_all("images/pointer.png",32,32,16,0);
     /*main game loop*/
 
-    ent = entity_new();
+    ent = player_new();
+
+    /*ent = entity_new();
     if (ent)
     {
-        slog("The goomba has spawned");
+        slog("Spelunky has spawned");
         ent->sprite = gf2d_sprite_load_all(
-            "images/goomba.png",
-            64,
-            64,
-            2,
+            "images/spelunky_walk.png",
+            128,
+            128,
+            9,
             0);
-        ent->think = goomba_think;
-    }
+        ent->think = spelunky_think;
+    }*/
+
 
     // graphics -> sprites -> entities -> things
     while(!done)
@@ -61,7 +65,7 @@ int main(int argc, char * argv[])
         /*update things here*/
         SDL_GetMouseState(&mx,&my);
         mf+=0.1;
-        if (mf >= 2.0) mf = 0;
+        if (mf >= 16.0) mf = 0;
         entity_think_all();
         entity_update_all();
         
@@ -92,20 +96,19 @@ int main(int argc, char * argv[])
     return 0;
 }
 
-void goomba_think(Entity* self)
+void spelunky_think(Entity* self)
 {
     int mx, my;
     
     // place initial position of goomba
-    self->velocity.x = 0.5;
-    slog("goomba x-pos: %i", self->position.x);
-    self->position.y = 610;
-    // if (!self) return;
+    self->velocity.x = 0.1;
+    self->position.y = 550;
+    ///* if (!self) return;
     //SDL_GetMouseState(&mx, &my);
     //if (mx < self->position.x)self->velocity.x = -0.1;
     //if (mx > self->position.x)self->velocity.x = 0.1;
     //if (my < self->position.y)self->velocity.y = -0.1;
-    //if (my > self->position.y)self->velocity.y = 0.1;
+    //if (my > self->position.y)self->velocity.y = 0.1;*/
 }
 
 /*eol@eof*/
