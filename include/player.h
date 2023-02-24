@@ -8,7 +8,7 @@
 * @param position place the player here
 * @return a pointer to the player entity
 */
-Entity *player_new();
+Entity *player_new(Vector2D Position);
 
 /*
 * @brief get a pointer to the player entity
@@ -22,5 +22,14 @@ Entity *player_get();
 * @param configure the new position for the player
 */
 void player_set_position(Vector2D position);
+
+// draw - obtain sprites
+void player_draw(Entity* self);
+
+// think - handles player actions
+void player_think(Entity* self);
+
+// update - updates player sprites accordingly
+void player_update(Entity* self);
 
 #endif

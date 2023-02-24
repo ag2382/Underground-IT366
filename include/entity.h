@@ -22,7 +22,7 @@ typedef struct Entity_S
     struct Entity_S* parent;
 
     void (*think)(struct Entity_S* self);
-    int (*update)(struct Entity_S* self);
+    void (*update)(struct Entity_S* self);
     void (*draw)(struct Entity_S* self);
     void (*free_entity)(struct Entity_S* self); //cleanup of custom data if defined
     void* data;
