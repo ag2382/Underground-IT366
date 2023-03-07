@@ -24,11 +24,12 @@ typedef struct Entity_S
     void (*think)(struct Entity_S* self);
     void (*update)(struct Entity_S* self);
     void (*draw)(struct Entity_S* self);
-    void (*free_entity)(struct Entity_S* self); //cleanup of custom data if defined
+    void (*touch)(struct Entity_S* self);       // armor and gold can be touched by player entity
+    void (*free_entity)(struct Entity_S* self); // cleanup of custom data if defined
     void* data;
-
-    TextLine name;
-    float health;
+    
+    int active;
+    float cooldown;                               // for duration based weapons?
 
 }Entity;
 

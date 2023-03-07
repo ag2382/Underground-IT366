@@ -3,6 +3,20 @@
 
 #include "entity.h"
 
+typedef enum {
+	PLAYER_WalkLeft,
+	PLAYER_WalkRight,
+	PLAYER_JumpRise,
+	PLAYER_JumpFall,
+}PlayerActions;
+
+typedef enum {
+	PLAYER_Idle,
+	PLAYER_Walk,
+	Player_Jump,
+	Player_Death
+}PlayerState;
+
 /*
 * @brief spawn a new player entity
 * @param position place the player here

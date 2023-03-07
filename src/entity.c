@@ -99,9 +99,10 @@ void entity_draw_all()
 void entity_update(Entity* ent)
 {
     if (!ent)return;
-    ent->frame += 0.12;
-    if (ent->frame >= 9)ent->frame = 0;  // handles each frame of designated sprite row
-    vector2d_add(ent->position, ent->position, ent->velocity);
+    if (ent->update != NULL)        // entity is populated for update function to execute
+    {
+        ent->update(ent);
+    }
 }
 
 void entity_update_all()

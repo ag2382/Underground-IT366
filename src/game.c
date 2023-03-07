@@ -2,7 +2,9 @@
 #include "simple_logger.h"
 #include "gf2d_graphics.h"
 #include "gf2d_sprite.h"
+#include "gfc_input.h"
 #include "entity.h"
+#include "tools.h"
 #include "player.h"
 
 int main(int argc, char * argv[])
@@ -31,6 +33,7 @@ int main(int argc, char * argv[])
         0);
     gf2d_graphics_set_frame_delay(16);
     gf2d_sprite_init(1024);
+    gfc_input_init("config/input.cfg");
     entity_manager_init(1024);
     SDL_ShowCursor(SDL_DISABLE);
     
