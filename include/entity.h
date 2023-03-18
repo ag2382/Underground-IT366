@@ -28,8 +28,27 @@ typedef struct Entity_S
     void (*free_entity)(struct Entity_S* self); // cleanup of custom data if defined
     void* data;
     
+
+    // FOR TOOLS
     int active;
-    float cooldown;                               // for duration based weapons?
+
+    // PICKAXE
+    int pickaxe_active;
+
+    // ROPE
+    int rope_active;
+
+    // BOMB
+    int bomb_active;
+    float bomb_time;
+
+    // SHOTGUN
+    int ammo;
+
+    // BOOMERANG
+    int boomerang_active;       // only one boomerang can be active on screen
+    int boomerang_return;       // flag used to begin return to player
+    float boomerang_dist;       // current distance of boomerang traveled
 
 }Entity;
 

@@ -50,21 +50,39 @@ extern Tool tool_list[];
 
 // certain "tools" can be touched by player entity
 
-void Tool_Pickaxe(Entity* self);
-void Tool_Whip(Entity* self);
+// PICKAXE STUFF
+Entity* Pickaxe(Vector2D position);
+void Pickaxe_Think(Entity* self);
+
+// WHIP STUFF
+Entity* Whip(Vector2D position);
+void Whip_Think(Entity* self);
+
+// ROPE STUFF
 void Tool_Rope(Entity* self);
 
 // BOMB STUFF
 Entity* Bomb(Vector2D position);
-void Tool_Bomb_Get(Entity* self);
-void Tool_Bomb_Cooldown(Entity* self);
+void Bomb_Think(Entity* self);
 
-void Tool_Shotgun(Entity* self);
-void Tool_Boomerang(Entity* self);
-void Tool_Shield(Entity* self);
-void Tool_FreezeRay(Entity* self);
+// SHOTGUN STUFF
+Entity* Shotgun(Vector2D position);
+
+// BOOMERANG STUFF
+Entity* Boomerang(Vector2D position);
+void Boomerang_Think(Entity* self);
+
+// SHIELD STUFF
+Entity* Shield(Vector2D position);
+
+// FREEZE RAY STUFF
+Entity* FreezeRay(Vector2D position);
+
+// ROCKET BOOTS STUFF
 void Tool_RocketBoots(Entity* self);
-void Tool_DrillGun(Entity* self);
+
+// DRILL GUN STUFF
+Entity* DrillGun(Vector2D position);
 
 
 #endif

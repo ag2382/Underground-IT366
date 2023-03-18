@@ -9,13 +9,29 @@
 
 typedef struct Sprite_S
 {
+    Uint8 _inuse;
     int ref_count;
     TextLine filepath;
+    Uint32 frameCount;
     SDL_Texture *texture;
     SDL_Surface *surface;
     Uint32 frames_per_line;
     Uint32 frame_w,frame_h;
 }Sprite;
+
+//typedef struct
+//{
+//    Uint8                       _inuse;
+//    TextLine                    filename;               /**<the name of the file used to create the sprite*/
+//    Uint32                      frameCount;             /**<how many frames are loaded for this model*/
+//    Texture* texture;                /**<texture memory pointer*/
+//    Uint8                       framesPerLine;          /**<how many frames are per line in the sprite sheet*/
+//    Uint32                      frameWidth, frameHeight; /*<the size, in pixels, of the individual sprite frames*/
+//    VkBuffer                    buffer;
+//    VkDeviceMemory              bufferMemory;
+//    VkDescriptorSet* descriptorSet;          /**<descriptor sets used for this sprite to render*/
+//    SDL_Surface* surface;                /**<pointer to the cpu surface data*/
+//}Sprite;
 
 /**
  * @brief initializes the sprite manager 

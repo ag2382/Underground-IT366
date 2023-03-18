@@ -1,6 +1,7 @@
 #include "player.h"
 #include "simple_logger.h"
 #include "gfc_text.h"
+#include "gfc_input.h"
 #include "tools.h"
 
 static Entity *player = NULL;
@@ -11,20 +12,20 @@ typedef struct
 	float jump;
 	float max_jump;		// how high will the player jump (after pressing X ~ PS4 controller)
 	int health;			// player's starting + max health
-	int armor, maxArmor;
 	int jump_rise, jump_fall, jump_input;
-	int bomb_count;
+	int bomb_count, rope_count;
+	int score;
 	//enum PlayerState st;
 }PlayerData;
 
 static PlayerData data = {
-	7.5f, 
-	0.5f, 
-	10.0f, 
+	7.5f,
+	0.5f,
+	10.0f,
 	4,
-	0, 3, 
-	0, 0, 0, 
-	4
+	0, 0, 0,
+	4, 4,
+	0
 };
 
 /*
@@ -59,7 +60,6 @@ Entity *player_new(Vector2D position)
 	
 	// load default tools: pickaxe, whip, bomb, rope
 
-	slog("Spelunky has spawned with %i health", data.health);
 	return self;
 }
 
@@ -73,10 +73,36 @@ void player_draw(Entity *self)
 
 }
 
+// PLAYER USES PICKAXE
+void player_UsePickaxe(Entity* self)
+{
+	Pickaxe(vector2d(self->position.x + 50, self->position.y + 10));
+	self->pickaxe_active = 1;
+}
+
+// PLAYER USES WHIP
+void player_UseWhip(Entity* self)
+{
+	Whip(vector2d(self->position.x + 50, self->position.y));
+	self->active = 1;
+}
+
+void player_UseRope(Entity* self)
+{
+	if (data.rope_count < 1)
+	{
+		slog("You ran out of rope!");
+	}
+	else
+	{
+		slog("You used a rope!");
+		data.rope_count--;
+		self->rope_active = 1;
+	}
+}
 
 // @brief player spawns a bomb under a specific keybind ("C" for now)
-// implement 60 second cooldown after spawning a bomb --> DON'T SPAWN EVERY FRAME
-void player_useBomb(Entity* self)
+void player_UseBomb(Entity* self)
 {
 	if (data.bomb_count < 1)
 	{
@@ -87,14 +113,50 @@ void player_useBomb(Entity* self)
 		Bomb(vector2d(self->position.x + 40, self->position.y + 50));
 		slog("You have spawned a bomb!");
 		data.bomb_count--;
-		self->active = 1;
-
-		// start cooldown as soon as bomb is dropped
-		//Tool_Bomb_Cooldown(self);
-		self->cooldown += 1.0;
-
+		self->bomb_active = 1;
 	}
 }
+
+// PLAYER USES ROPE
+
+// PLAYER USES SHOTGUN
+void player_UseShotgun(Entity* self)
+{
+	Shotgun(vector2d(self->position.x + 60, self->position.y + 20));
+	self->active = 1;
+}
+
+// PLAYER USES BOOMERANG
+void player_UseBoomerang(Entity* self)
+{
+	Boomerang(vector2d(self->position.x + 60, self->position.y + 50));
+	self->boomerang_active = 1;
+}
+
+// PLAYER USES SHIELD
+void player_UseShield(Entity* self)
+{
+	Shield(vector2d(self->position.x + 45, self->position.y + 10));
+	self->active = 1;
+}
+
+// PLAYER USES FREEZE RAY
+void player_UseFreezeRay(Entity* self)
+{
+	FreezeRay(vector2d(self->position.x + 60, self->position.y + 20));
+	self->active = 1;
+}
+
+// PLAYER USES FREEZE RAY
+void player_UseDrillGun(Entity* self)
+{
+	DrillGun(vector2d(self->position.x + 50, self->position.y + 20));
+	self->active = 1;
+}
+
+// PLAYER USES ROCKET BOOTS
+
+// PLAYER USES DRILL GUN
 
 void player_think(Entity* self)
 {
@@ -168,34 +230,86 @@ void player_think(Entity* self)
 	// PICKAXE
 	if ((keys)[SDL_SCANCODE_X])
 	{
-		slog("Spelunky used pickaxe");
+		if (self->pickaxe_active == 0) player_UsePickaxe(self);
+	}
+	else
+	{
+		self->pickaxe_active = 0;
 	}
 
-	// BOMB
-	if ((keys)[SDL_SCANCODE_C])
+	// WHIP
+	if ((keys)[SDL_SCANCODE_V])
 	{
-		// when you press the button, spawn a bomb
-		// bombs can only spawn in 1 SECOND intervals
-
-		/*Entity* bomb = NULL;
-
-		if (bomb != NULL)
+		if (self->active > 0)
 		{
-			slog("There is an active bomb already");
-
-		}*/
-		// if you hold down the button
-		if (self->cooldown > 0)
-		{
-			slog("There is an active bomb already");
-			self->cooldown += 1.0;
-			if (self->cooldown == 60) self->cooldown = 0;
+			slog("Whip is being used already");
 		}
 		else
 		{
-			player_useBomb(self);
+			player_UseWhip(self);
 		}
 	}
+
+	// ROPE
+	if ((keys)[SDL_SCANCODE_H])
+	{
+		if (self->rope_active == 0) player_UseRope(self);
+	}
+	else
+	{
+		self->rope_active = 0;
+	}
+
+	// BOMB
+	if ((keys)[SDL_SCANCODE_C])		// button is held
+	{
+		if (self->bomb_active == 0) player_UseBomb(self);
+	}
+	else
+	{
+		self->bomb_active = 0;
+	}
+
+	// SHOTGUN
+	if ((keys)[SDL_SCANCODE_R])
+	{
+		player_UseShotgun(self);
+	}
+	
+	// BOOMERANG
+	if ((keys)[SDL_SCANCODE_B])
+	{
+		if (self->boomerang_active == 0) player_UseBoomerang(self);
+	}
+	else
+	{
+		self->boomerang_active = 0;
+	}
+
+	// SHIELD
+	if ((keys)[SDL_SCANCODE_G])
+	{
+		player_UseShield(self);
+	}
+
+	// FREEZE RAY
+	if ((keys)[SDL_SCANCODE_F])
+	{
+		player_UseFreezeRay(self);
+	}
+
+	// ROCKET BOOTS
+	if ((keys)[SDL_SCANCODE_Q])
+	{
+		slog("use rocket boots");
+	}
+
+	// DRILL GUN
+	if ((keys)[SDL_SCANCODE_T])
+	{
+		player_UseDrillGun(self);
+	}
+
 }
 
 void player_update(Entity *self)
