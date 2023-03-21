@@ -3,6 +3,7 @@
 
 #include "gfc_text.h"
 #include "gfc_types.h"
+#include "gfc_shape.h"
 #include "gfc_vector.h"
 #include "gf2d_sprite.h"
 
@@ -14,6 +15,8 @@ typedef struct Entity_S
     float   rotation;
     float   speed;
     Vector2D drawOffset;
+
+    Shape shape;
 
     Vector2D position;
     Vector2D velocity;
@@ -28,12 +31,15 @@ typedef struct Entity_S
     void (*free_entity)(struct Entity_S* self); // cleanup of custom data if defined
     void* data;
     
-
     // FOR TOOLS
-    int active;
+    int tool_active;
+    float cooldown;
 
     // PICKAXE
     int pickaxe_active;
+
+    // WHIP
+    int whip_active;
 
     // ROPE
     int rope_active;
@@ -44,11 +50,24 @@ typedef struct Entity_S
 
     // SHOTGUN
     int ammo;
+    int shotgun_active;
 
     // BOOMERANG
     int boomerang_active;       // only one boomerang can be active on screen
     int boomerang_return;       // flag used to begin return to player
     float boomerang_dist;       // current distance of boomerang traveled
+
+    // SHIELD
+    int shield_active;
+
+    // FREEZE RAY
+    int freeze_ray_active;
+
+    // ROCKET BOOTS
+    int rocket_boots_active;
+
+    // DRILL GUN
+    int drill_gun_active;
 
 }Entity;
 
@@ -90,5 +109,9 @@ void entity_update_all();
  * @brief call all the think functions for the entities, if they have one
  */
 void entity_think_all();
+
+//Shape entity_get_shape(Entity *ent);
+//
+//Shape entity_get_shape_after_move(Entity* ent);
 
 #endif

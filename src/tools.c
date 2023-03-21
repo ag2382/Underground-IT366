@@ -1,8 +1,11 @@
 #include "simple_logger.h"
 #include "gfc_text.h"
 #include "tools.h"
+#include "camera.h"
 
 // to pick up items, crouch and press X (keyboard)
+
+static Entity* tool = NULL;
 
 // **PICKAXE**
 Entity* Pickaxe(Vector2D position)
@@ -42,20 +45,47 @@ Entity* Whip(Vector2D position)
 		0);
 	vector2d_copy(self->position, position);
 	self->think = Whip_Think;
+	self->whip_active = 1;
 	return self;
 }
 
 void Whip_Think(Entity* self)
 {
 	if (!self)return;
-	self->frame += 0.1;
-	if (self->frame >= 6) entity_free(self);
+	self->frame += 0.15;
+	if (self->frame >= 6) {
+		self->whip_active = 0;
+		slog("whip can be used again");
+		entity_free(self);
+	}
 }
 
 // **ROPE**
-void Tool_Rope(Entity* self)
+Entity* Rope(Vector2D position)
 {
+	Entity* self;
+	self = entity_new();
+	if (!self) return NULL;
+	self->sprite = gf2d_sprite_load_all(
+		"images/tools/rope.png",
+		128,
+		128,
+		5,
+		0);
+	vector2d_copy(self->position, position);
+	self->think = Rope_Think;
+	return self;
+}
 
+void Rope_Think(Entity* self)
+{
+	if (!self)return;
+	self->frame += 0.1;
+	if (self->frame >= 5) {
+		self->whip_active = 0;
+		slog("rope can be used again");
+		entity_free(self);
+	}
 }
 
 // **BOMB**
@@ -72,6 +102,7 @@ Entity *Bomb(Vector2D position)
 		0);
 	vector2d_copy(self->position, position);
 	self->think = Bomb_Think;
+	self->draw = Bomb_Draw;
 	return self;
 }
 
@@ -79,6 +110,14 @@ void Bomb_Explode(Entity* self)
 {
 	slog("bomb explodes here");
 	entity_free(self);
+}
+
+void Bomb_Draw(Entity* self)
+{
+	Vector2D drawPosition, camera;
+	if (!self) return;
+	camera = camera_get_draw_offset();
+	vector2d_add(drawPosition, self->position, camera);
 }
 
 #define BOMB_TIMER		20.0
@@ -98,13 +137,24 @@ Entity* Shotgun(Vector2D position)
 	self = entity_new();
 	if (!self) return NULL;
 	self->sprite = gf2d_sprite_load_all(
-		"images/tools/shotgun.png",
+		"images/tools/shotgun_blast.png",
 		128,
 		128,
 		1,
 		0);
 	vector2d_copy(self->position, position);
+	self->think = Shotgun_Think;
 	return self;
+}
+
+void Shotgun_Think(Entity* self)
+{
+	self->frame += 0.1;
+	if (self->frame >= 4)
+	{
+		self->frame = 0;
+		entity_free(self);
+	}
 }
 
 // **BOOMERANG**
@@ -185,19 +235,36 @@ Entity* FreezeRay(Vector2D position)
 	self = entity_new();
 	if (!self) return NULL;
 	self->sprite = gf2d_sprite_load_all(
-		"images/tools/freeze_ray.png",
+		"images/tools/freeze_ray_ice.png",
+		128,
+		128,
+		1,
+		0);
+	vector2d_copy(self->position, position);
+	self->think = FreezeRay_Think;
+	return self;
+}
+
+void FreezeRay_Think(Entity* self)
+{
+	self->position.x += 8;
+}
+
+
+// **ROCKET BOOTS**
+Entity* RocketBoots(Vector2D position)
+{
+	Entity* self;
+	self = entity_new();
+	if (!self) return NULL;
+	self->sprite = gf2d_sprite_load_all(
+		"images/tools/rocket_boots.png",
 		128,
 		128,
 		1,
 		0);
 	vector2d_copy(self->position, position);
 	return self;
-}
-
-// **ROCKET BOOTS**
-void Tool_RocketBoots(Entity* self)
-{
-
 }
 
 // **DRILL GUN**
@@ -207,11 +274,22 @@ Entity* DrillGun(Vector2D position)
 	self = entity_new();
 	if (!self) return NULL;
 	self->sprite = gf2d_sprite_load_all(
-		"images/tools/drillgun.png",
+		"images/tools/drill_bullet.png",
 		128,
 		128,
 		1,
 		0);
 	vector2d_copy(self->position, position);
+	self->think = DrillGun_Think;
 	return self;
+}
+
+void DrillGun_Think(Entity* self)
+{
+	self->position.x += 4;
+}
+
+Entity* tool_get()
+{
+	return tool;
 }

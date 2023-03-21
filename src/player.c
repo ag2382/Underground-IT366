@@ -1,25 +1,21 @@
-#include "player.h"
 #include "simple_logger.h"
 #include "gfc_text.h"
 #include "gfc_input.h"
+#include "gfc_shape.h"
+#include "gf2d_graphics.h"
+#include "gf2d_draw.h"
 #include "tools.h"
+#include "camera.h"
+#include "player.h"
+#include "level.h"
 
 static Entity *player = NULL;
 
-typedef struct 
-{
-	float walkSpeed;		// player moving from left to right
-	float jump;
-	float max_jump;		// how high will the player jump (after pressing X ~ PS4 controller)
-	int health;			// player's starting + max health
-	int jump_rise, jump_fall, jump_input;
-	int bomb_count, rope_count;
-	int score;
-	//enum PlayerState st;
-}PlayerData;
+//Screen dimension constants
+const int SCREEN_WIDTH = 1200;
+const int SCREEN_HEIGHT = 720;
 
 static PlayerData data = {
-	7.5f,
 	0.5f,
 	10.0f,
 	4,
@@ -27,6 +23,10 @@ static PlayerData data = {
 	4, 4,
 	0
 };
+
+void player_draw(Entity* self);
+void player_think(Entity* self);
+void player_update(Entity* self);
 
 /*
 * @brief sets player's position in the level
@@ -55,12 +55,24 @@ Entity *player_new(Vector2D position)
 		9,
 		0);
 	self->think = player_think;
+	self->draw = player_draw;
 	self->update = player_update;
+	self->shape = gfc_shape_circle(64, 128, 10);
+	//self->shape = gfc_shape_circle(0, 0, 10);
 	vector2d_copy(self->position, position);
+	self->speed = 2.5;
+	self->drawOffset = vector2d(64, 74);
 	
 	// load default tools: pickaxe, whip, bomb, rope
 
 	return self;
+}
+
+Vector2D player_get_position()
+{
+	Vector2D v = { 0 };
+	if (!player) return v;
+	return player->position;
 }
 
 Entity* player_get()
@@ -68,9 +80,15 @@ Entity* player_get()
 	return player;
 }
 
-void player_draw(Entity *self)
+void player_draw(Entity* self)
 {
+	Vector2D drawPosition, camera;
+	if (!self) return;
+	camera = camera_get_draw_offset();
+	vector2d_add(drawPosition, self->position, camera);
+	gf2d_draw_circle(drawPosition, 10, gfc_color8(255, 255, 0, 255));
 
+	//slog("player drawn does not work");
 }
 
 // PLAYER USES PICKAXE
@@ -84,7 +102,6 @@ void player_UsePickaxe(Entity* self)
 void player_UseWhip(Entity* self)
 {
 	Whip(vector2d(self->position.x + 50, self->position.y));
-	self->active = 1;
 }
 
 void player_UseRope(Entity* self)
@@ -95,6 +112,7 @@ void player_UseRope(Entity* self)
 	}
 	else
 	{
+		Rope(vector2d(self->position.x + 40, self->position.y + 50));
 		slog("You used a rope!");
 		data.rope_count--;
 		self->rope_active = 1;
@@ -123,7 +141,7 @@ void player_UseBomb(Entity* self)
 void player_UseShotgun(Entity* self)
 {
 	Shotgun(vector2d(self->position.x + 60, self->position.y + 20));
-	self->active = 1;
+	self->shotgun_active = 1;
 }
 
 // PLAYER USES BOOMERANG
@@ -137,45 +155,56 @@ void player_UseBoomerang(Entity* self)
 void player_UseShield(Entity* self)
 {
 	Shield(vector2d(self->position.x + 45, self->position.y + 10));
-	self->active = 1;
+	self->shield_active = 1;
 }
 
 // PLAYER USES FREEZE RAY
 void player_UseFreezeRay(Entity* self)
 {
 	FreezeRay(vector2d(self->position.x + 60, self->position.y + 20));
-	self->active = 1;
-}
-
-// PLAYER USES FREEZE RAY
-void player_UseDrillGun(Entity* self)
-{
-	DrillGun(vector2d(self->position.x + 50, self->position.y + 20));
-	self->active = 1;
+	self->freeze_ray_active = 1;
 }
 
 // PLAYER USES ROCKET BOOTS
-
+void player_UseRocketBoots(Entity* self)
+{
+	RocketBoots(vector2d(self->position.x + 60, self->position.y + 20));
+	self->rocket_boots_active = 1;
+}
+  
 // PLAYER USES DRILL GUN
+void player_UseDrillGun(Entity* self)
+{
+	DrillGun(vector2d(self->position.x + 50, self->position.y + 20));
+	self->drill_gun_active = 1;
+}
 
 void player_think(Entity* self)
 {
-	//int mx, my;
+	// no longer moving down
+	/*if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 0) {
+		self->position.y += 1;
+	}*/
+
+	if (!self)return;
+
+	Vector2D camera;
+	camera = camera_get_position();
+
 	const Uint8* keys;
 	keys = SDL_GetKeyboardState(NULL);
-	//SDL_GetRelativeMouseState(&mx, &my);
-
-	// PLAYER MOVEMENT HANDLED HERE
 
 	// spelunky walks left
-	if ((keys)[SDL_SCANCODE_A] || (keys[SDL_SCANCODE_LEFT]))
+	if (gfc_input_command_down("walk_left"))
 	{
-		self->position.x -= data.walkSpeed;
+		self->position.x -= self->speed;
+		// make sure camera moves with him
 	}
 	// spelunky walks right
-	if ((keys[SDL_SCANCODE_D]) || (keys[SDL_SCANCODE_RIGHT]))
+	if (gfc_input_command_down("walk_right"))
 	{
-		self->position.x += data.walkSpeed;
+		self->position.x += self->speed;
+		// make sure camera moves with him
 	}
 
 	// JUMP
@@ -209,7 +238,7 @@ void player_think(Entity* self)
 	// initiate jump
 	else
 	{
-		if ((keys[SDL_SCANCODE_Z]))
+		if (gfc_input_command_pressed("jump"))
 		{
 			data.jump_input++;
 			if (data.jump_input > 1)
@@ -238,16 +267,12 @@ void player_think(Entity* self)
 	}
 
 	// WHIP
-	if ((keys)[SDL_SCANCODE_V])
+	
+	if (gfc_input_command_pressed("use_whip"))
 	{
-		if (self->active > 0)
-		{
-			slog("Whip is being used already");
-		}
-		else
-		{
-			player_UseWhip(self);
-		}
+		player_UseWhip(self);
+
+		// make whip inactive once it goes through active frames
 	}
 
 	// ROPE
@@ -271,7 +296,7 @@ void player_think(Entity* self)
 	}
 
 	// SHOTGUN
-	if ((keys)[SDL_SCANCODE_R])
+	if (gfc_input_command_pressed("use_shotgun"))
 	{
 		player_UseShotgun(self);
 	}
@@ -289,11 +314,11 @@ void player_think(Entity* self)
 	// SHIELD
 	if ((keys)[SDL_SCANCODE_G])
 	{
-		player_UseShield(self);
+		if (self->shield_active == 0) player_UseShield(self);
 	}
 
 	// FREEZE RAY
-	if ((keys)[SDL_SCANCODE_F])
+	if (gfc_input_command_pressed("use_freezeray"))
 	{
 		player_UseFreezeRay(self);
 	}
@@ -301,21 +326,28 @@ void player_think(Entity* self)
 	// ROCKET BOOTS
 	if ((keys)[SDL_SCANCODE_Q])
 	{
-		slog("use rocket boots");
+		if (self->rocket_boots_active == 0) player_UseRocketBoots(self);
 	}
 
 	// DRILL GUN
-	if ((keys)[SDL_SCANCODE_T])
+	if (gfc_input_command_pressed("use_drillgun"))
 	{
 		player_UseDrillGun(self);
 	}
 
+	camera_center_at(self->position);
 }
 
 void player_update(Entity *self)
 {
 	if (!self)return;
-	self->frame += 0.1;
+	self->frame += 0.1f;
 	if (self -> frame >= 9) self->frame = 0;  // handles each frame of designated sprite row
 	vector2d_add(self->position, self->position, self->velocity);
+}
+
+void player_free(Entity* self)
+{
+	if (!self)return;
+	player = NULL;
 }

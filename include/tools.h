@@ -59,14 +59,17 @@ Entity* Whip(Vector2D position);
 void Whip_Think(Entity* self);
 
 // ROPE STUFF
-void Tool_Rope(Entity* self);
+Entity* Rope(Vector2D position);
+void Rope_Think(Entity* self);
 
 // BOMB STUFF
 Entity* Bomb(Vector2D position);
 void Bomb_Think(Entity* self);
+void Bomb_Draw(Entity* self);
 
 // SHOTGUN STUFF
 Entity* Shotgun(Vector2D position);
+void Shotgun_Think(Entity* self);
 
 // BOOMERANG STUFF
 Entity* Boomerang(Vector2D position);
@@ -77,12 +80,14 @@ Entity* Shield(Vector2D position);
 
 // FREEZE RAY STUFF
 Entity* FreezeRay(Vector2D position);
+void FreezeRay_Think(Entity* self);
 
 // ROCKET BOOTS STUFF
-void Tool_RocketBoots(Entity* self);
+Entity* RocketBoots(Vector2D position);
 
 // DRILL GUN STUFF
 Entity* DrillGun(Vector2D position);
+void DrillGun_Think(Entity* self);
 
 
 #endif
