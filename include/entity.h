@@ -30,7 +30,7 @@ typedef struct Entity_S
     void (*touch)(struct Entity_S* self);       // armor and gold can be touched by player entity
     void (*free_entity)(struct Entity_S* self); // cleanup of custom data if defined
     void* data;
-    
+
     // FOR TOOLS
     int tool_active;
     float cooldown;
@@ -110,8 +110,18 @@ void entity_update_all();
  */
 void entity_think_all();
 
-//Shape entity_get_shape(Entity *ent);
-//
-//Shape entity_get_shape_after_move(Entity* ent);
+/**
+ * @brief given an entity get its shape in world space
+ * @param ent the entity to check
+ * @return a shape where its position is set to the world position
+ */
+Shape entity_get_shape(Entity* ent);
+
+/**
+ * @brief given an entity get its shape in world space where it will be after it moves
+ * @param ent the entity to check
+ * @return a shape where its position + velocity is set to the world position
+ */
+Shape entity_get_shape_after_move(Entity* ent);
 
 #endif

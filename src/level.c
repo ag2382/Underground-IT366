@@ -3,10 +3,12 @@
 
 #include "gfc_config.h"
 #include "gfc_list.h"
+
 #include "gf2d_graphics.h"
-#include "gfc_shape.h"
+
 #include "camera.h"
 #include "level.h"
+#include "entity.h"
 
 void level_build(Level* level);
 
@@ -49,6 +51,8 @@ Level* level_load(const char* filename)
         level_free(level);
         return NULL;
     }
+
+    // read data from level JSON
     str = sj_object_get_value_as_string(lj, "name");
     if (str)gfc_line_cpy(level->name, str);
     sj_value_as_vector2d(sj_object_get_value(lj, "tileSize"), &level->tileSize);
@@ -56,22 +60,23 @@ Level* level_load(const char* filename)
     str = sj_object_get_value_as_string(lj, "tileSet");
     if (str)
     {
-        level->tileSet = gf2d_sprite_load_all(str, (Sint32)level->tileSize.x, (Sint32)level->tileSize.y, tileFPL, 1);
+        level->tileSet = gf2d_sprite_load_all(str, (Sint32)level->tileSize.x, (Sint32)level->tileSize.y, &tileFPL, 1);
     }
     list = sj_object_get_value(lj, "tileMap");
-    c = sj_array_get_count(list);
+    c = sj_array_get_count(list);               // row
     row = sj_array_get_nth(list, 0);
-    d = sj_array_get_count(row);
+    d = sj_array_get_count(row);                // column
+    slog("rows: %i, columns: %i", c, d);
     if ((c * d) == 0)
     {
-        slog("corrupt row or column count for %s level", filename);
+        slog("corrupt row or colBumn count for %s level", filename);
         level_free(level);
         sj_free(json);
         return NULL;
     }
-    level->mapSize.x = d;
-    level->mapSize.y = c;
-    level->tileMap = gfc_allocate_array(sizeof(int), c * d);
+    level->mapSize.x = d;               // d = 19
+    level->mapSize.y = c;               // c = 13
+    level->tileMap = gfc_allocate_array(sizeof(int), c * d);            // 228 tiles
     if (!level->tileMap)
     {
         slog("failed to allocate tileMap for level %s", filename);
@@ -98,6 +103,8 @@ Level* level_load(const char* filename)
     return level;
 }
 
+// CHECK FOR COLLISIONS
+
 int level_shape_clip(Level* level, Shape shape)
 {
     int i, c;
@@ -108,11 +115,13 @@ int level_shape_clip(Level* level, Shape shape)
     {
         clip = gfc_list_get_nth(level->clips, i);
         if (!clip)continue;
-        if (gfc_shape_overlap(*clip, shape))return 1;
+        if (gfc_shape_overlap(*clip, shape))
+            return 1;
     }
     return 0;
 }
 
+// FORMS THE COLLISION TILES IN THE LEVEL
 void level_build_clip_space(Level* level)
 {
     Shape* shape;
@@ -151,7 +160,6 @@ void level_build(Level* level)
         slog("failed to create tileLayer surface");
         return;
     }
-    slog("created surface of size (%i,%i)", level->tileLayer->surface->w, level->tileLayer->surface->h);
     //make sure the surface is compatible with our graphics settings
     level->tileLayer->surface = gf2d_graphics_screen_convert(&level->tileLayer->surface);
     if (!level->tileLayer->surface)
@@ -202,6 +210,7 @@ Level* level_new()
     level->clips = gfc_list_new();
     return level;
 }
+
 void level_free(Level* level)
 {
     if (!level)return;
@@ -212,4 +221,12 @@ void level_free(Level* level)
     gfc_list_delete(level->clips);
     free(level);
 }
+
+int get_level_tile(Level* level, int x, int y) {
+    if (x >= 0 && x < level->mapSize.x*level->tileSize.x && y >= 0 && y < level->mapSize.y* level->tileSize.y)
+    {
+        return level->tileMap[(y * (int)level->mapSize.x) + x];
+    }
+}
+
 /*eol@eof*/

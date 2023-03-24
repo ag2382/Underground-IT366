@@ -9,6 +9,7 @@
 #include "entity.h"
 #include "tools.h"
 #include "player.h"
+#include "space_bug.h"
 
 int main(int argc, char * argv[])
 {
@@ -38,12 +39,13 @@ int main(int argc, char * argv[])
         0);
     gf2d_graphics_set_frame_delay(16);
     gf2d_sprite_init(1024);
-    gfc_input_init("config/input.cfg");
+    gfc_input_init("config/input.json");
     gui_setup_hud();
     entity_manager_init(1024);
     SDL_ShowCursor(SDL_DISABLE);
 
     level = level_load("config/test.level");
+    level_set_active_level(level);
     //SDL_Rect camera = { 0, 0, level->tileLayer->frame_w, level->tileLayer->frame_h };
     
     /*demo setup*/
@@ -51,8 +53,7 @@ int main(int argc, char * argv[])
     mouse = gf2d_sprite_load_all("images/pointer.png",32,32,16,0);
     /*main game loop*/
 
-    player = player_new(vector2d(650, 380));
-    gfc_input_init("config/input.cfg");
+    player = player_new(vector2d(400, 300));
 
     // graphics -> sprites -> entities -> things
     while(!done)
@@ -66,23 +67,13 @@ int main(int argc, char * argv[])
         if (mf >= 16.0) mf = 0;
         entity_think_all();
         entity_update_all();
-        camera_world_snap();      // moves camera based on window resolution
-
-        //camera.x = player->position.x - 600;
-        //camera.y = player->position.y - 360;
-
-        ////slog("camera dimensions: %i, %i", camera.x, camera.y);
-        //slog("camera size: %i, %i", camera.w, camera.h);
-
-        /*if (camera.x < 0) camera.x = 0;
-        if (camera.y < 0) camera.y = 0;*/
-
+        //camera_world_snap();      // moves camera based on window resolution
 
         gf2d_graphics_clear_screen();// clears drawing buffers
         // all drawing should happen betweem clear_screen and next_frame
         //backgrounds drawn first
         gf2d_sprite_draw_image(sprite,vector2d(0,0));
-        level_draw(level);
+        level_draw(level_get_active_level());
         entity_draw_all();
         player_draw(player);
         gui_draw_hud();
@@ -106,7 +97,8 @@ int main(int argc, char * argv[])
     FILE* file;
     file = fopen("stats.txt", "w");
     fprintf(file, "Spelunky walked at a speed of %f", player->speed);
-    level_free(level);
+    level_free(level_get_active_level());
+    entity_free(player);
     slog("---==== END ====---");
     return 0;
 }

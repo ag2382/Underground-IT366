@@ -104,11 +104,6 @@ void entity_update(Entity* ent)
     {
         ent->update(ent);
     }
-    //if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(ent)))
-    //{
-    //    //our next position is a hit, so don't move
-    //    return;
-    //}
 }
 
 void entity_update_all()
@@ -125,6 +120,12 @@ void entity_think(Entity* ent)
 {
     if (!ent)return;
     if (ent->think)ent->think(ent);
+    if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(ent)))
+    {
+        // slog("clip");
+        //our next position is a hit, so don't move
+        return;
+    }
 }
 
 void entity_think_all()
@@ -137,21 +138,21 @@ void entity_think_all()
     }
 }
 
-//Shape entity_get_shape_after_move(Entity* ent)
-//{
-//    Shape shape = { 0 };
-//    if (!ent)return shape;
-//    gfc_shape_copy(&shape, ent->shape);
-//    gfc_shape_move(&shape, ent->position);
-//    gfc_shape_move(&shape, ent->velocity);
-//    return shape;
-//}
-//
-//Shape entity_get_shape(Entity* ent)
-//{
-//    Shape shape = { 0 };
-//    if (!ent)return shape;
-//    gfc_shape_copy(&shape, ent->shape);
-//    gfc_shape_move(&shape, ent->position);
-//    return shape;
-//}
+Shape entity_get_shape_after_move(Entity* ent)
+{
+    Shape shape = { 0 };
+    if (!ent)return shape;
+    gfc_shape_copy(&shape, ent->shape);
+    gfc_shape_move(&shape, ent->position);
+    gfc_shape_move(&shape, ent->velocity);
+    return shape;
+}
+
+Shape entity_get_shape(Entity* ent)
+{
+    Shape shape = { 0 };
+    if (!ent)return shape;
+    gfc_shape_copy(&shape, ent->shape);
+    gfc_shape_move(&shape, ent->position);
+    return shape;
+}

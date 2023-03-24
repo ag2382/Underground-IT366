@@ -9,19 +9,30 @@
 #include "player.h"
 #include "level.h"
 
-static Entity *player = NULL;
+static Entity* player = NULL;
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 1200;
 const int SCREEN_HEIGHT = 720;
 
+// player jump stuff
+float airTime = 0;
+bool isJumping;
+
+typedef struct
+{
+	int health;			// player's starting + max health
+	int bomb_count, rope_count;
+	int score;
+	bool onGround;
+	//enum PlayerState st;
+}PlayerData;
+
 static PlayerData data = {
-	0.5f,
-	10.0f,
 	4,
-	0, 0, 0,
 	4, 4,
-	0
+	0,
+	false
 };
 
 void player_draw(Entity* self);
@@ -42,27 +53,27 @@ void player_set_position(Vector2D position)
 	vector2d_copy(player->position, position);
 }
 
-Entity *player_new(Vector2D position)
+Entity* player_new(Vector2D position)
 {
 	Entity* self;
 	self = entity_new();
 	if (!self) return NULL;
 
 	self->sprite = gf2d_sprite_load_all(
-		"images/spelunky_walk.png",
-		128,
-		128,
-		9,
+		"images/spelunky_idle.png",
+		64,
+		64,
+		1,
 		0);
 	self->think = player_think;
 	self->draw = player_draw;
 	self->update = player_update;
-	self->shape = gfc_shape_circle(64, 128, 10);
+	self->shape = gfc_shape_rect(64, 64, 128, 128);
 	//self->shape = gfc_shape_circle(0, 0, 10);
 	vector2d_copy(self->position, position);
 	self->speed = 2.5;
+	self->acceleration = vector2d(0, 20);
 	self->drawOffset = vector2d(64, 74);
-	
 	// load default tools: pickaxe, whip, bomb, rope
 
 	return self;
@@ -83,10 +94,10 @@ Entity* player_get()
 void player_draw(Entity* self)
 {
 	Vector2D drawPosition, camera;
+	Rect rect = { self->position.x, self->position.y, 64, 64 };
 	if (!self) return;
 	camera = camera_get_draw_offset();
-	vector2d_add(drawPosition, self->position, camera);
-	gf2d_draw_circle(drawPosition, 10, gfc_color8(255, 255, 0, 255));
+	gf2d_draw_rect(rect, gfc_color8(255, 255, 0, 255));
 
 	//slog("player drawn does not work");
 }
@@ -171,91 +182,94 @@ void player_UseRocketBoots(Entity* self)
 	RocketBoots(vector2d(self->position.x + 60, self->position.y + 20));
 	self->rocket_boots_active = 1;
 }
-  
+
 // PLAYER USES DRILL GUN
 void player_UseDrillGun(Entity* self)
 {
-	DrillGun(vector2d(self->position.x + 50, self->position.y + 20));
+	DrillGun(vector2d(self->position.x + 50, self->position.y-50));
 	self->drill_gun_active = 1;
 }
 
 void player_think(Entity* self)
 {
+	//slog("rect.x: %i", rect.x);
 	// no longer moving down
-	/*if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 0) {
-		self->position.y += 1;
-	}*/
+	//int clip = level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self));
 
 	if (!self)return;
 
-	Vector2D camera;
-	camera = camera_get_position();
-
+	Vector2D walk = { 0 };
+	//camera = camera_get_position();
+	
 	const Uint8* keys;
 	keys = SDL_GetKeyboardState(NULL);
+
+	// if mapsize[self->position.x, self->position.y] == 1
+		// collision occurs
 
 	// spelunky walks left
 	if (gfc_input_command_down("walk_left"))
 	{
-		self->position.x -= self->speed;
-		// make sure camera moves with him
+		walk.x -= 1;
+		//self->position.x -= self->speed;
 	}
 	// spelunky walks right
 	if (gfc_input_command_down("walk_right"))
 	{
-		self->position.x += self->speed;
-		// make sure camera moves with him
+		walk.x += 1;
+		//self->position.x += self->speed;
 	}
 
-	// JUMP
+	if (gfc_input_command_down("walk_up"))
+	{
+		walk.y -= 1;
+		//self->position.x -= self->speed;
+	}
+	// spelunky walks right
+	if (gfc_input_command_down("walk_down"))
+	{
+		walk.y += 1;
+		//self->position.x += self->speed;
+	}
 
-	// player enters jump state
-	if (data.jump_rise)
+	// EITHER WALKING LEFT OR RIGHT
+	if ((walk.x) || (walk.y))
 	{
-		if (self->velocity.y == (-data.max_jump))
-		{
-			self->velocity.y = 0;
-			data.jump_rise = 0;
-			data.jump_fall = 1;
-		}
-		else
-		{
-			self->velocity.y -= data.jump;
-		}
+		//slog("position: %f", self->position.x);
+		vector2d_normalize(&walk);
+		vector2d_scale(walk, walk, self->speed);
+		vector2d_copy(self->velocity, walk);
+		//if (clip) vector2d_copy(self->velocity, -walk);
 	}
-	// player is in the jump fall state
-	else if (data.jump_fall)
-	{
-		if (self->velocity.y == data.max_jump) {
-			self->velocity.y = 0;
-			data.jump_fall = 0;
-		}
-		else
-		{
-			self->velocity.y += data.jump;
-		}
-	}
-	// initiate jump
 	else
 	{
-		if (gfc_input_command_pressed("jump"))
+		vector2d_clear(self->velocity);
+	}
+
+	if (isJumping)
+	{
+		if (data.onGround)
 		{
-			data.jump_input++;
-			if (data.jump_input > 1)
+			self->velocity.y -= self->acceleration.y;
+			// CALCULATE HOW LONG PLAYER IS IN THE AIR FOR WHILE JUMPING
+			airTime += 0.1;
+			if (airTime > 2.5)					// ONCE PLAYER REACHES MAXIMUM AIR TIME
 			{
+				isJumping = false;				// MAKE HIM FALL
 				self->velocity.y = 0;
-				data.jump_rise = 0;
+				airTime = 0;					// RESET AIR TIME
 			}
-			else
-			{
-				data.jump_rise = 1;
-			}
-		}
-		else
-		{
-			data.jump_input = 0;
 		}
 	}
+	else
+	{
+		if (gfc_input_command_pressed("jump") && data.onGround)
+		{
+			isJumping = 1;
+			data.onGround = false;
+		}
+	}
+
 	// PICKAXE
 	if ((keys)[SDL_SCANCODE_X])
 	{
@@ -267,7 +281,7 @@ void player_think(Entity* self)
 	}
 
 	// WHIP
-	
+
 	if (gfc_input_command_pressed("use_whip"))
 	{
 		player_UseWhip(self);
@@ -300,7 +314,7 @@ void player_think(Entity* self)
 	{
 		player_UseShotgun(self);
 	}
-	
+
 	// BOOMERANG
 	if ((keys)[SDL_SCANCODE_B])
 	{
@@ -335,15 +349,89 @@ void player_think(Entity* self)
 		player_UseDrillGun(self);
 	}
 
-	camera_center_at(self->position);
+	//camera_center_at(self->position);
 }
 
-void player_update(Entity *self)
+void player_update(Entity* self)
 {
 	if (!self)return;
-	self->frame += 0.1f;
-	if (self -> frame >= 9) self->frame = 0;  // handles each frame of designated sprite row
+	self->velocity.y += SDL_STANDARD_GRAVITY;
+
+	//if (self->frame >= 9) self->frame = 0;  // handles each frame of designated sprite row
 	vector2d_add(self->position, self->position, self->velocity);
+	// CHECK FOR COLLISIONS IN THE LEVEL
+
+	Vector2D newPositions = self->position;
+
+	Level *lev = level_get_active_level();
+
+	if (self->position.y >= 640)
+	{
+		self->position.y = 640;
+		self->velocity.y = 0;
+		data.onGround = true;
+	}
+
+	// CALCULATE PLAYER'S POSITION RELATIVE TO LEVEL
+	int player_x = (int)self->position.x / lev->tileSize.x;		// x
+	int player_y = (int)self->position.y / lev->tileSize.x;		// y
+
+	slog("tile locations: %i, %i", (int)player_x, (int)player_y);
+
+	//slog("tile size y: %f", lev->mapSize.y);
+
+	/*
+	 *	WIP COLLISION SYSTEM
+	 *     (Tile-by-Tile)
+	 */
+
+	// CHECK FOR COLLISIONS WHILE MOVING TO THE LEFT
+	if (self->velocity.x <= 0) 
+	{
+		// TOP AND BOTTOM LEFT OF SPRITE
+		if (get_level_tile(lev, player_x, player_y) != 0
+			|| get_level_tile(lev, player_x, player_y + 0.9f) != 0)
+		{
+			newPositions.x = player_x + lev->tileSize.x;
+			self->velocity.x = 0;
+		}
+	}
+	// CHECK FOR COLLISIONS WHILE MOVING TO THE RIGHT
+	else
+	{
+		// TOP AND BOTTOM RIGHT OF SPRITE
+		if (get_level_tile(lev, player_x + 1.0f, player_y) != 0
+			|| get_level_tile(lev, player_x + 1.0f, player_y + 0.9f) != 0)
+		{
+			newPositions.x = player_x * lev->tileSize.x;
+			self->velocity.x = 0;
+		}
+	}
+
+	self->position.x = newPositions.x;
+
+	// CHECK FOR COLLISIONS WHILE JUMPING UP AND DOWN
+	//if (self->velocity.y <= 0)
+	//{
+	//	// UPPER LEFT AND RIGHT OF SPRITE
+	//	if (get_level_tile(lev, (int)player_x, (int)player_y) != 0
+	//		|| get_level_tile(lev, (int)player_x + 1.0f, (int)player_y) != 0)
+	//	{
+	//		self->position.y = (int)player_y * lev->tileSize.y;
+	//		self->velocity.y = 0;
+	//	}
+	//}
+	//else
+	//{
+	//	// LOWER LEFT AND RIGHT OF SPRITE
+	//	if (get_level_tile(lev, (int)player_x, (int)player_y + 0.9f) != 0
+	//		|| get_level_tile(lev, (int)player_x + 1.0f, (int)player_y + 0.9f) != 0)
+	//	{
+	//		self->position.y = (int)player_y;
+	//		self->velocity.y = 0;
+	//		//data.onGround = true;
+	//	}
+	//}
 }
 
 void player_free(Entity* self)

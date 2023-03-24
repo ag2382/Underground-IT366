@@ -1,0 +1,44 @@
+{
+  "commands": [
+    {
+      "command": "walk_left",
+      "keys": [ "a" ]
+    },
+    {
+      "command": "walk_right",
+      "keys": [ "d" ]
+    },
+    {
+      "command": "jump",
+      "keys": [ "z" ]
+    },
+    {
+      "command": "walk_up",
+      "keys": [ "w" ]
+    },
+    {
+      "command": "walk_down",
+      "keys": [ "s" ]
+    },
+    {
+      "command": "use_whip",
+      "keys": [ "v" ]
+    },
+    {
+      "command": "use_bomb",
+      "keys": [ "c" ]
+    },
+    {
+      "command": "use_shotgun",
+      "keys": [ "r" ]
+    },
+    {
+      "command": "use_freezeray",
+      "keys": [ "f" ]
+    },
+    {
+      "command": "use_drillgun",
+      "keys": [ "t" ]
+    }
+  ]
+}
