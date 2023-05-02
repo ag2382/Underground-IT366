@@ -1,43 +1,54 @@
 #include "simple_logger.h"
+
 #include "gfc_text.h"
 #include "gfc_input.h"
+#include "gfc_audio.h"
+
 #include "gfc_shape.h"
 #include "gf2d_graphics.h"
 #include "gf2d_draw.h"
-#include "tools.h"
+#include "gf2d_sprite.h"
 #include "camera.h"
-#include "player.h"
+
+#include "tools.h"
 #include "level.h"
+#include "boulder.h"
+#include "gold.h"
+#include "totem.h"
+#include "shop.h"
 
-static Entity* player = NULL;
+#include "player.h"
 
-//Screen dimension constants
-const int SCREEN_WIDTH = 1200;
-const int SCREEN_HEIGHT = 720;
+static Entity* miner = NULL;
+
+// cooldown defined for multiple tools
+Uint32 pickaxe_Cooldown = 400;
+Uint32 shotgun_Cooldown;
+Uint32 freezeray_Cooldown = 600;	// maybe add charging capabilities??
+Uint32 drill_Cooldown = 1200;		// powerful weapon  ->  longer cooldown
+
+Uint32 timeOfSwing = 0;				// pickaxe
+
+Uint32 timeOfFire = 0;				// find time at which you started firing
+Uint32 timeCurrent = 0;
 
 // player jump stuff
 float airTime = 0;
+bool onGround;
 bool isJumping;
+bool stuck;
 
-typedef struct
-{
-	int health;			// player's starting + max health
-	int bomb_count, rope_count;
-	int score;
-	bool onGround;
-	//enum PlayerState st;
-}PlayerData;
+// WIP TIMER
+bool tStarted;
 
-static PlayerData data = {
-	4,
-	4, 4,
-	0,
-	false
-};
+// TOOL UPGRADES - temporary solution
 
-void player_draw(Entity* self);
+Vector2D screen = { 0 };	// screen position of player being drawn
+
 void player_think(Entity* self);
+void player_draw(Entity* self);
 void player_update(Entity* self);
+void player_free(Entity* self);
 
 /*
 * @brief sets player's position in the level
@@ -45,275 +56,573 @@ void player_update(Entity* self);
 */
 void player_set_position(Vector2D position)
 {
-	if (!player)
+	if (!miner)
 	{
 		slog("playable miner is not present");
 		return;
 	}
-	vector2d_copy(player->position, position);
+	vector2d_copy(miner->position, position);
 }
 
 Entity* player_new(Vector2D position)
 {
 	Entity* self;
+	PlayerData* data;
+	SJson* json, * player;
+	int health, bombs, rope, gold;
+
 	self = entity_new();
 	if (!self) return NULL;
 
-	self->sprite = gf2d_sprite_load_all(
-		"images/spelunky_idle.png",
-		64,
-		64,
-		1,
-		0);
+	// * LOAD PLAYER ENTITY INTO GAME AND GIVE IT PROPERTIES * //
+	// 
+	//self->sprite = gf2d_sprite_load_image("images/spelunky_idle.png");
 	self->think = player_think;
-	self->draw = player_draw;
 	self->update = player_update;
-	self->shape = gfc_shape_rect(64, 64, 128, 128);
-	//self->shape = gfc_shape_circle(0, 0, 10);
-	vector2d_copy(self->position, position);
-	self->speed = 2.5;
-	self->acceleration = vector2d(0, 20);
-	self->drawOffset = vector2d(64, 74);
-	// load default tools: pickaxe, whip, bomb, rope
+	self->draw = player_draw;
+	self->shape = gfc_shape_rect(10, 0, 40, 58);
+	//self->body.shape = &self->shape;
+	self->free_entity = player_free;
+	self->speed = 3.0;
+	self->acceleration = vector2d(0, 12);
+	self->team = 1;				// player is on its own team
 
+	// * SCREEN POSITION FOR PLAYER IS DEFINED IN game.c * //
+	vector2d_copy(self->position, position);
+
+	// * JSON IMPLEMENTATION * //
+	json = sj_load("config/player.json");
+	if (!json)
+	{
+		slog("Player JSON does not exist");
+		return NULL;
+	}
+
+	// * FIND PLAYER KEY * //
+	player = sj_object_get_value(json, "player");
+
+	// * EXTRACT VALUES FROM PLAYER * //
+	sj_object_get_value_as_int(player, "health", &health);
+	sj_object_get_value_as_int(player, "bombs", &bombs);
+	sj_object_get_value_as_int(player, "rope", &rope);
+	sj_object_get_value_as_int(player, "gold", &gold);
+
+
+	data = gfc_allocate_array(sizeof(PlayerData), 1);
+	if (data)
+	{
+		data->health = health;
+		data->bomb_count = bombs;
+		data->rope_count = rope;
+		data->drill_count = 5;
+		data->gold = 1000;				// for class demonstration purposes
+		data->isHit = false;
+		data->inShop = false;
+		data->newPos = vector2d(0, 0);
+
+		for (int i = 0; i < 5; i++) data->upgrade_count[i] = 0;
+	}
+	self->data = data;
+
+	slog("player spawned in world position: %i, %i", (int)self->position.x, (int)self->position.y);
+
+	//sj_free(json);
+	miner = self;
 	return self;
 }
 
+// * RETURN THE POSITION OF THE PLAYER ENTITY * //	
 Vector2D player_get_position()
 {
 	Vector2D v = { 0 };
-	if (!player) return v;
-	return player->position;
+	if (!miner) return v;
+	return miner->position;
 }
 
+// * RETURN A POINTER TO THE PLAYER ENTITY * //
 Entity* player_get()
 {
-	return player;
+	return miner;
 }
 
+// * DRAW THE PLAYER HERE * //
 void player_draw(Entity* self)
 {
-	Vector2D drawPosition, camera;
-	Rect rect = { self->position.x, self->position.y, 64, 64 };
+	PlayerData* data = self->data;
+	Vector2D camera;
+	camera = camera_get_position();
 	if (!self) return;
-	camera = camera_get_draw_offset();
-	gf2d_draw_rect(rect, gfc_color8(255, 255, 0, 255));
 
-	//slog("player drawn does not work");
+	//camera = camera_get_draw_offset();
+	vector2d_sub(screen, self->position, camera);		// screen = world - camera
+
+	gf2d_sprite_draw_image(gf2d_sprite_load_image("images/spelunky_idle.png"), screen);
+
+	// * SET UP CAMERA * //
+	self->rect = self->shape.s.r;
+	self->rect.x += self->position.x;
+	self->rect.y += self->position.y;
+
+	// * player shape - used for testing purposes * //
+	vector2d_add(self->rect, self->rect, camera_get_draw_offset());
+	gf2d_draw_rect(self->rect, gfc_color8(255, 255, 255, 255));
+
+	// * INTERACT WITH THE SHOPKEEPER * //
+	if (data->inShop)
+	{
+		gf2d_sprite_draw_image(gf2d_sprite_load_image("images/shop_menu.png"), vector2d(0, 0));
+	}
+
 }
 
-// PLAYER USES PICKAXE
+// * PICKAXE * //	
 void player_UsePickaxe(Entity* self)
 {
-	Pickaxe(vector2d(self->position.x + 50, self->position.y + 10));
-	self->pickaxe_active = 1;
+	//Pickaxe(vector2d(screen.x + 35, screen.y + 10));
+	Pickaxe(vector2d(self->position.x + 35, self->position.y + 7));
 }
 
-// PLAYER USES WHIP
+// * WHIP * //
 void player_UseWhip(Entity* self)
 {
-	Whip(vector2d(self->position.x + 50, self->position.y));
+	Whip(vector2d(screen.x + 50, screen.y));
 }
 
+// * ROPE * //
 void player_UseRope(Entity* self)
 {
-	if (data.rope_count < 1)
+	PlayerData* data = self->data;
+	if (data->rope_count < 1)
 	{
 		slog("You ran out of rope!");
 	}
 	else
 	{
-		Rope(vector2d(self->position.x + 40, self->position.y + 50));
+		Rope(vector2d(self->position.x + 64, self->position.y));
 		slog("You used a rope!");
-		data.rope_count--;
+		data->rope_count--;
 		self->rope_active = 1;
 	}
 }
 
-// @brief player spawns a bomb under a specific keybind ("C" for now)
+// * BOMB * //
 void player_UseBomb(Entity* self)
 {
-	if (data.bomb_count < 1)
+	PlayerData* data = self->data;
+
+	// cross bombs
+	if (bomb_upgrade)
 	{
-		slog("You ran out of bombs!");
+		if (data->upgrade_count[1] < 1)
+		{
+			slog("You ran out of cross bombs. Reverting to normal bombs");
+			bomb_upgrade = 0;
+		}
+		else
+		{
+			Bomb(vector2d(self->position.x + 5, self->position.y));
+			slog("You spawned a cross bomb!");
+			data->upgrade_count[1]--;
+		}
 	}
+	// default bombs
 	else
 	{
-		Bomb(vector2d(self->position.x + 40, self->position.y + 50));
-		slog("You have spawned a bomb!");
-		data.bomb_count--;
-		self->bomb_active = 1;
+		if (data->bomb_count < 1)
+		{
+			slog("You ran out of bombs!");
+		}
+		else
+		{
+			Bomb(vector2d(self->position.x + 5, self->position.y));
+			slog("You spawned a bomb!");
+			data->bomb_count--;
+		}
 	}
 }
 
-// PLAYER USES ROPE
-
-// PLAYER USES SHOTGUN
+// * SHOTGUN is fired relative to player's screen position * //
 void player_UseShotgun(Entity* self)
 {
-	Shotgun(vector2d(self->position.x + 60, self->position.y + 20));
+	Shotgun(vector2d(screen.x + 40, screen.y - 30));
 	self->shotgun_active = 1;
 }
 
-// PLAYER USES BOOMERANG
+// * BOOMERANG * //
 void player_UseBoomerang(Entity* self)
 {
-	Boomerang(vector2d(self->position.x + 60, self->position.y + 50));
+	Boomerang(vector2d(screen.x + 10, screen.y));
 	self->boomerang_active = 1;
 }
 
-// PLAYER USES SHIELD
+// * SHIELD * //
 void player_UseShield(Entity* self)
 {
 	Shield(vector2d(self->position.x + 45, self->position.y + 10));
 	self->shield_active = 1;
 }
 
-// PLAYER USES FREEZE RAY
+// * FREEZE RAY is fired relative to player's screen position * //
 void player_UseFreezeRay(Entity* self)
 {
-	FreezeRay(vector2d(self->position.x + 60, self->position.y + 20));
-	self->freeze_ray_active = 1;
+	FreezeRay(vector2d(screen.x + 40, screen.y - 30));
+	FreezeRay(vector2d(self->position.x + 40, self->position.y - 30));
 }
 
-// PLAYER USES ROCKET BOOTS
-void player_UseRocketBoots(Entity* self)
+void player_UseRocketBoots(Entity* self)	// ROCKET BOOTS
 {
-	RocketBoots(vector2d(self->position.x + 60, self->position.y + 20));
-	self->rocket_boots_active = 1;
+	//RocketBoots(vector2d(self->position.x + 60, self->position.y + 20));
+	//self->rocket_boots_active = 1;
+
+	self->velocity.y -= 2;
 }
 
-// PLAYER USES DRILL GUN
+// * DRILL is fired relative to player's screen position * //
 void player_UseDrillGun(Entity* self)
 {
-	DrillGun(vector2d(self->position.x + 50, self->position.y-50));
-	self->drill_gun_active = 1;
+	PlayerData* data = self->data;
+	// * DRILL HAS LIMITED AMMUNITION * //
+
+	if (drill_upgrade)
+	{
+		if (data->upgrade_count[4] < 1)
+		{
+			slog("You ran out of mega drill bullets! Reverting to regular drill bullets!");
+			drill_upgrade = 0;
+		}
+		else
+		{
+			DrillGun(vector2d(screen.x + 30, screen.y - 120));
+			data->upgrade_count[4]--;
+		}
+	}
+	else
+	{
+		if (data->drill_count < 1)
+		{
+			slog("You ran out of drill bullets!");
+		}
+		else
+		{
+			DrillGun(vector2d(screen.x + 30, screen.y - 30));
+			data->drill_count--;
+		}
+	}
 }
 
+// * temporary hard-coded solution for tool upgrades * //
+
+void checkUpgrades(Entity *self)
+{
+	PlayerData* data = self->data;
+
+	// Only activate upgrades if you are not in the shop
+	if (!data->inShop)
+	{
+		// * PICKAXE * //
+		
+		// attempt to upgrade
+		if (gfc_input_command_pressed("upgrade pickaxe"))
+		{
+			// do you have the upgrade?
+			if (data->upgrade_count[0])
+			{
+				// change accordingly
+				if (!pickaxe_upgrade)
+				{
+					pickaxe_upgrade = 1;
+					slog("diamond pickaxe activated");
+				}
+				else
+				{
+					pickaxe_upgrade = 0;
+					slog("revert to regular pickaxe");
+				}
+			}
+			else
+			{
+				slog("No upgrade available for the pickaxe!");
+			}
+		}
+
+		// * BOMB * //
+		if (gfc_input_command_pressed("upgrade bomb"))
+		{
+			// do you have the upgrade?
+			if (data->upgrade_count[1])
+			{
+				// change accordingly
+				if (!bomb_upgrade)
+				{
+					bomb_upgrade = 1;
+					slog("cross bombs activated");
+				}
+				else
+				{
+					bomb_upgrade = 0;
+					slog("revert to regular bomb");
+				}
+			}
+			else
+			{
+				slog("No upgrade available for the bomb!");
+			}
+		}
+
+		// * SHOTGUN * //
+		if (gfc_input_command_pressed("upgrade shotgun"))
+		{
+			// do you have the upgrade?
+			if (data->upgrade_count[2])
+			{
+				// change accordingly
+				if (!shotgun_upgrade)
+				{
+					shotgun_upgrade = 1;
+					slog("rapid shotgun activated");
+				}
+				else
+				{
+					shotgun_upgrade = 0;
+					slog("revert to regular shotgun");
+				}
+			}
+			else
+			{
+				slog("No upgrade available for the shotgun!");
+			}
+		}
+
+		// * ROCKET BOOTS * //
+		if (gfc_input_command_pressed("upgrade rocketboots"))
+		{
+			// do you have the upgrade?
+			if (data->upgrade_count[3])
+			{
+				// change accordingly
+				if (!rocketboots_upgrade)
+				{
+					rocketboots_upgrade = 1;
+					slog("gun boots activated");
+				}
+				else
+				{
+					rocketboots_upgrade = 0;
+					slog("revert to regular rocket boots");
+				}
+			}
+			else
+			{
+				slog("No upgrade available for the rocket boots!");
+			}
+		}
+
+		// * DRILL GUN * //
+		if (gfc_input_command_pressed("upgrade drillgun"))
+		{
+			// do you have the upgrade?
+			if (data->upgrade_count[4])
+			{
+				// change accordingly
+				if (!drill_upgrade)
+				{
+					drill_upgrade = 1;
+					slog("mega drill gun activated");
+				}
+				else
+				{
+					drill_upgrade = 0;
+					slog("revert to regular drill gun");
+				}
+			}
+			else
+			{
+				slog("No upgrade available for the drillgun!");
+			}
+		}
+	}
+}
+
+// * HOW WILL THE PLAYER OPERATE WITHIN THE CONFINES OF THE GAME? * //
 void player_think(Entity* self)
 {
-	//slog("rect.x: %i", rect.x);
-	// no longer moving down
-	//int clip = level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self));
-
+	Vector2D walk = { 0 };
+	PlayerData* data = self->data;
 	if (!self)return;
 
-	Vector2D walk = { 0 };
-	//camera = camera_get_position();
-	
 	const Uint8* keys;
 	keys = SDL_GetKeyboardState(NULL);
 
-	// if mapsize[self->position.x, self->position.y] == 1
-		// collision occurs
-
-	// spelunky walks left
-	if (gfc_input_command_down("walk_left"))
-	{
+	// if player presses 'A'
+	if (gfc_input_command_down("walk_left") && !data->inShop)
+	{	// set negative walking direction
 		walk.x -= 1;
-		//self->position.x -= self->speed;
 	}
-	// spelunky walks right
-	if (gfc_input_command_down("walk_right"))
-	{
+
+	// if player presses 'D'
+	if (gfc_input_command_down("walk_right") && !data->inShop)
+	{	// set positive walking direction
 		walk.x += 1;
-		//self->position.x += self->speed;
 	}
 
-	if (gfc_input_command_down("walk_up"))
+	if (walk.x)				// spleunky is walking in either direction
 	{
-		walk.y -= 1;
-		//self->position.x -= self->speed;
-	}
-	// spelunky walks right
-	if (gfc_input_command_down("walk_down"))
-	{
-		walk.y += 1;
-		//self->position.x += self->speed;
-	}
-
-	// EITHER WALKING LEFT OR RIGHT
-	if ((walk.x) || (walk.y))
-	{
-		//slog("position: %f", self->position.x);
 		vector2d_normalize(&walk);
+		// set velocity according to given speed
 		vector2d_scale(walk, walk, self->speed);
 		vector2d_copy(self->velocity, walk);
-		//if (clip) vector2d_copy(self->velocity, -walk);
 	}
 	else
 	{
 		vector2d_clear(self->velocity);
 	}
 
+	// * JUMP IS INITIATED * //
 	if (isJumping)
 	{
-		if (data.onGround)
+		// * CALCULATE JUMP HEIGHT AND AIR TIME * //
+		self->velocity.y -= self->acceleration.y;
+		airTime += 0.1;
+
+		// * IF MAX AIR TIME IS EXCEEDED or YOU BONK YOUR HEAD * //
+		if (airTime > 2.5 || level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 1)
 		{
-			self->velocity.y -= self->acceleration.y;
-			// CALCULATE HOW LONG PLAYER IS IN THE AIR FOR WHILE JUMPING
-			airTime += 0.1;
-			if (airTime > 2.5)					// ONCE PLAYER REACHES MAXIMUM AIR TIME
+			// * MAKE HIM FALL * //
+			isJumping = false;
+			self->velocity.y = 0;
+			airTime = 0;
+		}
+	}
+
+	else
+	{
+		if (gfc_input_command_pressed("jump") && level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 1)
+		{
+			isJumping = 1;
+			Sound* sfx = gfc_sound_load("audio/sfx/classic_jump.wav", 1, 1);
+			gfc_sound_play(sfx, 0, 0.25, 0, -1);
+		}
+		// * ONLY USE ROCKET BOOTS WHILE FALLING AFTER JUMP * //
+		else if ((keys)[SDL_SCANCODE_Q] && level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 0)
+		{
+			self->velocity.y -= 3;
+
+			// * TAKE GUN BOOT UPGRADE INTO ACCOUNT * //
+			if (gfc_input_command_pressed("boot_shoot") && rocketboots_upgrade)
 			{
-				isJumping = false;				// MAKE HIM FALL
-				self->velocity.y = 0;
-				airTime = 0;					// RESET AIR TIME
+				GunBoot_Bullet(vector2d(screen.x, screen.y + 5));
+			}
+		}
+	}
+
+	// PICKAXE
+	if (gfc_input_command_pressed("use_pickaxe"))
+	{
+		if (tStarted && timeCurrent < pickaxe_Cooldown)
+		{
+			timeCurrent = SDL_GetTicks() - timeOfSwing;
+			pickaxe_active = 1;
+		}
+		else
+		{
+			tStarted = true;
+			pickaxe_active = 0;
+			timeOfSwing = SDL_GetTicks();
+			timeCurrent = 0;
+			player_UsePickaxe(self);
+		}
+	}
+
+	// WHIP
+	if (gfc_input_command_pressed("use_whip"))
+	{
+		player_UseWhip(self);
+	}
+
+	// ROPE
+	if (gfc_input_command_pressed("use_rope"))
+	{
+		player_UseRope(self);
+	}
+
+	// BOMB
+	if (gfc_input_command_pressed("use_bomb"))
+	{
+		player_UseBomb(self);
+	}
+
+	// SHOTGUN
+	if (shotgun_upgrade)
+	{
+		if (gfc_input_command_held("use_shotgun"))
+		{
+			shotgun_Cooldown = 200;
+			if (tStarted && timeCurrent < shotgun_Cooldown)
+			{
+				timeCurrent = SDL_GetTicks() - timeOfFire;
+			}
+			else
+			{
+				tStarted = true;
+				timeOfFire = SDL_GetTicks();
+				timeCurrent = 0;
+				player_UseShotgun(self);
 			}
 		}
 	}
 	else
 	{
-		if (gfc_input_command_pressed("jump") && data.onGround)
+		shotgun_Cooldown = 600;
+		if (gfc_input_command_pressed("use_shotgun"))
 		{
-			isJumping = 1;
-			data.onGround = false;
+			if (tStarted && timeCurrent < shotgun_Cooldown)
+			{
+				timeCurrent = SDL_GetTicks() - timeOfFire;
+			}
+			else
+			{
+				tStarted = true;
+				timeOfFire = SDL_GetTicks();
+				timeCurrent = 0;
+				player_UseShotgun(self);
+			}
 		}
 	}
 
-	// PICKAXE
-	if ((keys)[SDL_SCANCODE_X])
-	{
-		if (self->pickaxe_active == 0) player_UsePickaxe(self);
-	}
-	else
-	{
-		self->pickaxe_active = 0;
-	}
-
-	// WHIP
-
-	if (gfc_input_command_pressed("use_whip"))
-	{
-		player_UseWhip(self);
-
-		// make whip inactive once it goes through active frames
-	}
-
-	// ROPE
-	if ((keys)[SDL_SCANCODE_H])
-	{
-		if (self->rope_active == 0) player_UseRope(self);
-	}
-	else
-	{
-		self->rope_active = 0;
-	}
-
-	// BOMB
-	if ((keys)[SDL_SCANCODE_C])		// button is held
-	{
-		if (self->bomb_active == 0) player_UseBomb(self);
-	}
-	else
-	{
-		self->bomb_active = 0;
-	}
-
-	// SHOTGUN
-	if (gfc_input_command_pressed("use_shotgun"))
-	{
-		player_UseShotgun(self);
-	}
+	//if (gfc_input_command_pressed("use_shotgun"))
+	//{
+	//	// * rapid fire shotgun * //
+	//	if (shotgun_upgrade)
+	//	{
+	//		Uint32 shotgun_CooldownUpgrade = shotgun_Cooldown / 3;
+	//		if (tStarted && timeCurrent < shotgun_CooldownUpgrade)
+	//		{
+	//			timeCurrent = SDL_GetTicks() - timeOfFire;
+	//		}
+	//		else
+	//		{
+	//			tStarted = true;
+	//			timeOfFire = SDL_GetTicks();
+	//			timeCurrent = 0;
+	//			player_UseShotgun(self);
+	//		}
+	//	}
+	//	// * regular shotgun * //
+	//	else
+	//	{
+	//		if (tStarted && timeCurrent < shotgun_Cooldown)
+	//		{
+	//			timeCurrent = SDL_GetTicks() - timeOfFire;
+	//		}
+	//		else
+	//		{
+	//			tStarted = true;
+	//			timeOfFire = SDL_GetTicks();
+	//			timeCurrent = 0;
+	//			player_UseShotgun(self);
+	//		}
+	//	}
+	//}
 
 	// BOOMERANG
 	if ((keys)[SDL_SCANCODE_B])
@@ -334,108 +643,55 @@ void player_think(Entity* self)
 	// FREEZE RAY
 	if (gfc_input_command_pressed("use_freezeray"))
 	{
-		player_UseFreezeRay(self);
-	}
-
-	// ROCKET BOOTS
-	if ((keys)[SDL_SCANCODE_Q])
-	{
-		if (self->rocket_boots_active == 0) player_UseRocketBoots(self);
+		// * start the timer when you use the freeze ray * //
+		if (tStarted && timeCurrent < freezeray_Cooldown)
+		{
+			timeCurrent = SDL_GetTicks() - timeOfFire;
+		}
+		else
+		{
+			tStarted = true;
+			timeOfFire = SDL_GetTicks();
+			timeCurrent = 0;
+			player_UseFreezeRay(self);
+		}
 	}
 
 	// DRILL GUN
 	if (gfc_input_command_pressed("use_drillgun"))
 	{
-		player_UseDrillGun(self);
+		// * start the timer when you fire the weapon * //
+		if (tStarted && timeCurrent < drill_Cooldown)
+		{
+			timeCurrent = SDL_GetTicks() - timeOfFire;
+		}
+		else
+		{
+			tStarted = true;
+			timeOfFire = SDL_GetTicks();
+			timeCurrent = 0;
+			timeCurrent = 0;
+			player_UseDrillGun(self);
+		}
 	}
-
-	//camera_center_at(self->position);
+	camera_center_at(self->position);
 }
 
 void player_update(Entity* self)
 {
+	PlayerData* data = self->data;
+
 	if (!self)return;
-	self->velocity.y += SDL_STANDARD_GRAVITY;
-
-	//if (self->frame >= 9) self->frame = 0;  // handles each frame of designated sprite row
+	if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(self)) == 0)
+	{
+		self->velocity.y += 4;
+	}
 	vector2d_add(self->position, self->position, self->velocity);
-	// CHECK FOR COLLISIONS IN THE LEVEL
-
-	Vector2D newPositions = self->position;
-
-	Level *lev = level_get_active_level();
-
-	if (self->position.y >= 640)
-	{
-		self->position.y = 640;
-		self->velocity.y = 0;
-		data.onGround = true;
-	}
-
-	// CALCULATE PLAYER'S POSITION RELATIVE TO LEVEL
-	int player_x = (int)self->position.x / lev->tileSize.x;		// x
-	int player_y = (int)self->position.y / lev->tileSize.x;		// y
-
-	slog("tile locations: %i, %i", (int)player_x, (int)player_y);
-
-	//slog("tile size y: %f", lev->mapSize.y);
-
-	/*
-	 *	WIP COLLISION SYSTEM
-	 *     (Tile-by-Tile)
-	 */
-
-	// CHECK FOR COLLISIONS WHILE MOVING TO THE LEFT
-	if (self->velocity.x <= 0) 
-	{
-		// TOP AND BOTTOM LEFT OF SPRITE
-		if (get_level_tile(lev, player_x, player_y) != 0
-			|| get_level_tile(lev, player_x, player_y + 0.9f) != 0)
-		{
-			newPositions.x = player_x + lev->tileSize.x;
-			self->velocity.x = 0;
-		}
-	}
-	// CHECK FOR COLLISIONS WHILE MOVING TO THE RIGHT
-	else
-	{
-		// TOP AND BOTTOM RIGHT OF SPRITE
-		if (get_level_tile(lev, player_x + 1.0f, player_y) != 0
-			|| get_level_tile(lev, player_x + 1.0f, player_y + 0.9f) != 0)
-		{
-			newPositions.x = player_x * lev->tileSize.x;
-			self->velocity.x = 0;
-		}
-	}
-
-	self->position.x = newPositions.x;
-
-	// CHECK FOR COLLISIONS WHILE JUMPING UP AND DOWN
-	//if (self->velocity.y <= 0)
-	//{
-	//	// UPPER LEFT AND RIGHT OF SPRITE
-	//	if (get_level_tile(lev, (int)player_x, (int)player_y) != 0
-	//		|| get_level_tile(lev, (int)player_x + 1.0f, (int)player_y) != 0)
-	//	{
-	//		self->position.y = (int)player_y * lev->tileSize.y;
-	//		self->velocity.y = 0;
-	//	}
-	//}
-	//else
-	//{
-	//	// LOWER LEFT AND RIGHT OF SPRITE
-	//	if (get_level_tile(lev, (int)player_x, (int)player_y + 0.9f) != 0
-	//		|| get_level_tile(lev, (int)player_x + 1.0f, (int)player_y + 0.9f) != 0)
-	//	{
-	//		self->position.y = (int)player_y;
-	//		self->velocity.y = 0;
-	//		//data.onGround = true;
-	//	}
-	//}
+	checkUpgrades(self);
 }
 
 void player_free(Entity* self)
 {
 	if (!self)return;
-	player = NULL;
+	miner = NULL;
 }

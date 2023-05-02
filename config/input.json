@@ -13,16 +13,20 @@
       "keys": [ "z" ]
     },
     {
-      "command": "walk_up",
-      "keys": [ "w" ]
+      "command": "esc",
+      "keys": [ "ESCAPE" ]
     },
     {
-      "command": "walk_down",
-      "keys": [ "s" ]
+      "command": "use_pickaxe",
+      "keys": [ "x" ]
     },
     {
       "command": "use_whip",
       "keys": [ "v" ]
+    },
+    {
+      "command": "use_rope",
+      "keys": [ "h" ]
     },
     {
       "command": "use_bomb",
@@ -39,6 +43,62 @@
     {
       "command": "use_drillgun",
       "keys": [ "t" ]
+    },
+    {
+      "command": "buy_health",
+      "keys": [ "1" ]
+    },
+    {
+      "command": "buy_diamond_pickaxe",
+      "keys": [ "2" ]
+    },
+    {
+      "command": "buy_crossbomb",
+      "keys": [ "3" ]
+    },
+    {
+      "command": "buy_rapid_shotgun",
+      "keys": [ "4" ]
+    },
+    {
+      "command": "buy_gunboots",
+      "keys": [ "5" ]
+    },
+    {
+      "command": "buy_megadrill",
+      "keys": [ "6" ]
+    },
+    {
+      "command": "upgrade pickaxe",
+      "keys": [ "2" ]
+    },
+    {
+      "command": "upgrade bomb",
+      "keys": [ "3" ]
+    },
+    {
+      "command": "upgrade shotgun",
+      "keys": [ "4" ]
+    },
+    {
+      "command": "upgrade rocketboots",
+      "keys": [ "5" ]
+    },
+    {
+      "command": "boot_shoot",
+      "keys": [ "p" ]
+    },
+    {
+      "command": "upgrade drillgun",
+      "keys": [ "6" ]
+    },
+    {
+      "command": "open_chest",
+      "keys": [ "o" ]
+    },
+    {
+      "command": "action",
+      "keys": [ "i" ]
     }
   ]
 }

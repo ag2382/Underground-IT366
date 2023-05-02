@@ -1,4 +1,13 @@
 #include "simple_logger.h"
+#include "simple_json.h"
+
+#include "gfc_config.h"
+#include "gf2d_collision.h"
+
+#include "camera.h"
+#include "gf2d_draw.h"
+
+#include "player.h"
 #include "entity.h"
 #include "level.h"
 
@@ -67,12 +76,18 @@ void entity_free(Entity* ent)
         return;
     }
     if (ent->sprite)gf2d_sprite_free(ent->sprite);
+
     memset(ent, 0, sizeof(Entity));
 }
 
 void entity_draw(Entity* ent)
 {
-    if (!ent)return;
+    if (!ent) return;
+
+    if (ent->draw)      // if a defined draw function exists for another entity (PLAYER for example)
+    {
+        ent->draw(ent);
+    }
     if (ent->sprite)
     {
         gf2d_sprite_draw(
@@ -104,6 +119,15 @@ void entity_update(Entity* ent)
     {
         ent->update(ent);
     }
+    if (level_shape_clip(level_get_active_level(), entity_get_shape_after_move(ent)))
+    {
+        //our next position is a hit, so don't move
+        //slog("clipping");
+        ent->clipping = true;
+        return;
+    }
+    ent->clipping = false;
+    //slog("not clipping");
 }
 
 void entity_update_all()
@@ -126,6 +150,14 @@ void entity_think(Entity* ent)
         //our next position is a hit, so don't move
         return;
     }
+}
+
+SJson* entity_get_def_by_name(const char* name)
+{
+    //    int i,c;
+    if (!name)return NULL;
+
+    return NULL;
 }
 
 void entity_think_all()
@@ -155,4 +187,69 @@ Shape entity_get_shape(Entity* ent)
     gfc_shape_copy(&shape, ent->shape);
     gfc_shape_move(&shape, ent->position);
     return shape;
+}
+
+int entity_wall_check(Entity* self, Vector2D dir)
+{
+    Shape s;
+    int i, count;
+    int hit = 0;
+    Collision* c;
+    List* collisionList;
+    CollisionFilter filter = {
+        self->body.worldclip,
+        self->body.cliplayer,
+        0,
+        0,
+        &self->body
+    };
+
+    if (!self)return 0;
+    s = gf2d_body_to_shape(&self->body);
+    if (s.type == ST_RECT)
+    {
+        if (dir.x < 0)
+        {
+            s.s.r.w = -dir.x + 1;
+        }
+        else if (dir.x > 0)
+        {
+            s.s.r.x += (s.s.r.w + dir.x) - 1;
+            s.s.r.w = dir.x + 1;
+        }
+        if (dir.y < 0)
+        {
+            s.s.r.h = -dir.y + 1;
+        }
+        else if (dir.y > 0)
+        {
+            s.s.r.y += (s.s.r.h - dir.y) - 1;
+            s.s.r.h = dir.y + 1;
+        }
+    }
+    gfc_shape_move(&s, dir);
+
+    collisionList = gf2d_collision_check_space_shape(level_get_space(), s, filter);
+    if (collisionList != NULL)
+    {
+        count = gfc_list_get_count(collisionList);
+        for (i = 0; i < count; i++)
+        {
+            c = (Collision*)gfc_list_get_nth(collisionList, i);
+            if (!c)continue;
+            if ((c->body) && (c->body == self->body.ignore))continue;
+            if ((dir.y <= 0) && (c->body) && (c->body->cliplayer & PLATFORM_LAYER))
+            {
+                continue;
+            }
+            hit = 1;
+            /*if (__DebugMode)
+            {
+                gf2d_draw_shape(c->shape, gfc_color(255, 255, 0, 255), gf2d_camera_get_offset());
+            }*/
+        }
+        gf2d_collision_list_free(collisionList);
+        return hit;
+    }
+    return 0;
 }

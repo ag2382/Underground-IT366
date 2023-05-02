@@ -3,6 +3,34 @@
 
 #include "entity.h"
 
+typedef struct
+{
+	// * miner's health * //
+	int health;
+
+	// * bombs * //
+	int bomb_count;
+	int cross_bomb_count;
+
+	int rope_count;
+
+	// * drill bullets * //
+	int drill_count;
+	int mega_drill_Ucount;
+
+	// * miner's loot/currency * //
+	int gold;
+
+	// * UPGRADES * //
+	
+	// 0 - diamond pickaxe, 1 - cross bombs, 2 - rapid shotgun, 3 - gunboots, 4 - mega drill gun
+	int upgrade_count[5];
+	Bool isHit;
+	Bool inShop;
+	Vector2D newPos;		// player spawns after checkpoint
+
+} PlayerData;
+
 /*
 * @brief spawn a new player entity
 * @param position place the player here
@@ -23,13 +51,6 @@ Entity *player_get();
 */
 void player_set_position(Vector2D position);
 
-// draw - obtain sprites
-void player_draw(Entity* self);
-
-// think - handles player actions
-void player_think(Entity* self);
-
-// update - updates player sprites accordingly
-void player_update(Entity* self);
+Vector2D player_get_position();
 
 #endif

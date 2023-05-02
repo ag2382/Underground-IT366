@@ -3,7 +3,8 @@
 
 #include "gfc_text.h"
 #include "gfc_shape.h"
-#include "gfc_list.h"
+#include "gf2d_space.h"
+#include "entity.h"
 #include "gf2d_sprite.h"
 
 typedef struct
@@ -11,7 +12,6 @@ typedef struct
     int tileFrame;
     int solid;  // if true the tile cannot be walked through
 }TileInfo;
-
 typedef struct
 {
     TextLine    name;
@@ -21,7 +21,15 @@ typedef struct
     int* tileMap;    //WTF???
     Sprite* tileLayer;  //TBD
     List* clips;      //list of static shapes to clip against in the game world
+    Space* space;
 }Level;
+
+// * terrain durability* //
+//int dirt_health;
+//int sand_health;
+//int stone_health;
+//int malachite_health;
+//int quartz_health;
 
 /**
  * @brief get the set active level pointer if it is set
@@ -30,10 +38,10 @@ typedef struct
 Level* level_get_active_level();
 
 /**
- * @brief check if a shape clips any of the level static shapes.
+ * @brief check if a shape clips any of the level static shapes
  * @param level the level to check
  * @param shape the shape to check with
- * @return 0 if there is no OVERLAP, 1 if there is
+ * @return 0 if there is no overlap, 1 if there is
  */
 int level_shape_clip(Level* level, Shape shape);
 
@@ -49,29 +57,36 @@ void level_set_active_level(Level* level);
  * @return NULL on not found or other error, or the loaded level
  */
 Level* level_load(const char* filename);
-
 /**
  * @brief draw a level
  * @param level the level to draw
  */
 void level_draw(Level* level);
-
 /**
  * @brief allocate a blank level struct
  * @return NULL on error or an intialized level
  */
 Level* level_new();
-
 /**
  * @brief clean up a previously allocated level
  */
 void level_free(Level* level);
 
+
+/*
+* @brief update a level as you go
+*/
+
+void level_update(Level* level);
+
+Space* level_get_space();
+
 /**
  * @brief add an entity to the clip space of the level
  * @param entity the entity to add
  */
+void level_add_entity(Level* level, Entity* entity);
 
-int get_level_tile(Level *level, int x, int y);
+int get_level_tile(Level* level, int x, int y);
 
 #endif

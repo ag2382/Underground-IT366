@@ -30,19 +30,13 @@
 #define TOOL_ROCKETBOOTS	9
 #define TOOL_DRILLGUN		10
 
-/**
- * @purpose the tool information is what is loaded from disk to describe how the tool entity
- * is loaded
- */
-typedef struct Tool_S {
+int pickaxe_upgrade;
+int pickaxe_active;
 
-	TextLine name;			// name of the tool
-	void (*tool_think)		(Entity* ent, struct Tool_S* tool);
-	int count;				// for limited ammunition (ropes, bombs, shotgun ammo, drillgun ammo)
-	int flags;
-} Tool;
-
-extern Tool tool_list[];
+int bomb_upgrade;
+int shotgun_upgrade;
+int rocketboots_upgrade;
+int drill_upgrade;
 
 //void tool_draw (Entity* self);
 //void tool_think (Entity *self);
@@ -52,6 +46,8 @@ extern Tool tool_list[];
 
 // PICKAXE STUFF
 Entity* Pickaxe(Vector2D position);
+void Pickaxe_Draw(Entity* self);
+void Diamond_Pickaxe_Draw(Entity* self);
 void Pickaxe_Think(Entity* self);
 
 // WHIP STUFF
@@ -61,11 +57,14 @@ void Whip_Think(Entity* self);
 // ROPE STUFF
 Entity* Rope(Vector2D position);
 void Rope_Think(Entity* self);
+void Rope_Draw(Entity* self);
 
-// BOMB STUFF
+// GENERAL BOMB STUFF
 Entity* Bomb(Vector2D position);
 void Bomb_Think(Entity* self);
 void Bomb_Draw(Entity* self);
+void Cross_Bomb_Draw(Entity* self);		// cross bomb upgrade
+void Bomb_Update(Entity* self);
 
 // SHOTGUN STUFF
 Entity* Shotgun(Vector2D position);
@@ -81,13 +80,18 @@ Entity* Shield(Vector2D position);
 // FREEZE RAY STUFF
 Entity* FreezeRay(Vector2D position);
 void FreezeRay_Think(Entity* self);
+//void FreezeRay_Draw(Entity* self);
 
 // ROCKET BOOTS STUFF
-Entity* RocketBoots(Vector2D position);
+//Entity* RocketBoots(Vector2D position);
+Entity* GunBoot_Bullet(Vector2D position);
+void GunBoot_Bullet_Update(Entity* self);
 
 // DRILL GUN STUFF
 Entity* DrillGun(Vector2D position);
-void DrillGun_Think(Entity* self);
 
+void DrillGun_Think(Entity* self);
+void MegaDrillGun_Think(Entity* self);
+//void DrillGun_Draw(Entity* self);
 
 #endif

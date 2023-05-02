@@ -1,10 +1,8 @@
 #include "simple_logger.h"
-
 #include "gfc_shape.h"
-
 #include "gf2d_graphics.h"
-
 #include "camera.h"
+#include "player.h"
 
 static Camera camera = { 0 };
 
@@ -13,16 +11,18 @@ void camera_set_world_size(Vector2D size)
     camera.size = size;
 }
 
+// *center the camera over a specific entity*
 void camera_center_at(Vector2D position)
 {
     Vector2D cam = { 0 };
     Vector2D res;
-    res = gf2d_graphics_get_resolution();
-    vector2d_scale(res, res, 0.5);
+    res = gf2d_graphics_get_resolution();       // 1200 * 720
+    vector2d_scale(res, res, 0.5);              // 600 * 360
     vector2d_sub(cam, position, res);
     camera_set_position(cam);
 }
 
+// *keep the camera in bounds of the level*
 void camera_world_snap()
 {
     Vector2D res;

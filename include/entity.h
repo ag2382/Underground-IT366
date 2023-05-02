@@ -6,6 +6,7 @@
 #include "gfc_shape.h"
 #include "gfc_vector.h"
 #include "gf2d_sprite.h"
+#include "gf2d_body.h"
 
 typedef struct Entity_S
 {
@@ -15,8 +16,11 @@ typedef struct Entity_S
     float   rotation;
     float   speed;
     Vector2D drawOffset;
+    Bool clipping;
 
-    Shape shape;
+    Shape shape;        // used to load into the game
+    Rect rect;          // used for camera
+    Body body;
 
     Vector2D position;
     Vector2D velocity;
@@ -27,13 +31,15 @@ typedef struct Entity_S
     void (*think)(struct Entity_S* self);
     void (*update)(struct Entity_S* self);
     void (*draw)(struct Entity_S* self);
-    void (*touch)(struct Entity_S* self);       // armor and gold can be touched by player entity
+    //void (*touch)(struct Entity_S* self);       // armor and gold can be touched by player entity
     void (*free_entity)(struct Entity_S* self); // cleanup of custom data if defined
     void* data;
 
+    int team;
+    float cooldown;
+
     // FOR TOOLS
     int tool_active;
-    float cooldown;
 
     // PICKAXE
     int pickaxe_active;

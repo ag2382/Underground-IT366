@@ -26,6 +26,7 @@ Entity* space_bug_new(Vector2D position)
 
 void space_bug_think(Entity* self)
 {
+    slog("in space_bug_think");
     Vector2D m, dir, camera;
     int mx, my;
     if (!self)return;
