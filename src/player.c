@@ -124,8 +124,6 @@ Entity* player_new(Vector2D position)
 	}
 	self->data = data;
 
-	slog("player spawned in world position: %i, %i", (int)self->position.x, (int)self->position.y);
-
 	//sj_free(json);
 	miner = self;
 	return self;
