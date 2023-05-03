@@ -96,12 +96,10 @@ enum direction bullworm_ChooseDirection()
 	random = rand() % 2;
 	if (random == 0)
 	{
-		slog("Worm will move LEFT first when hostile!");
 		dir = LEFT;
 	}
 	else
 	{
-		slog("Worm will move RIGHT first when hostile!");
 		dir = RIGHT;
 	}
 

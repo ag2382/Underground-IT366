@@ -8,11 +8,11 @@
 //int moveTime;
 //int random;
 //
-//typedef enum
-//{
-//    LEFT,
-//    RIGHT,
-//} direction;
+typedef enum
+{
+    FLY_IDLE,
+    FLY_MOVE,
+} State;
 
 // * BOSS 3 of Project Underground * //
 

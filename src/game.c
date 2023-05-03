@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
     Level* level;
     const Uint8 * keys;
     Sprite *sprite, *title, *pause;
-    Sound* sound;
+    Sound *sound, *sound_t;
     Entity *player, *enemy, *boss, *interactable, *shop;
 
     int mx,my;
@@ -61,11 +61,9 @@ int main(int argc, char * argv[])
     gf2d_sprite_init(1024);
     gfc_input_init("config/input.json");
     gui_setup_hud();
-    entity_manager_init(1024);
+    //entity_manager_init(1024);
     SDL_ShowCursor(SDL_DISABLE);
 
-    level = level_load("config/test.level");
-    level_set_active_level(level);
     //SDL_Rect camera = { 0, 0, level->tileLayer->frame_w, level->tileLayer->frame_h };
     
     /*demo setup*/
@@ -73,46 +71,19 @@ int main(int argc, char * argv[])
     mouse = gf2d_sprite_load_all("images/pointer.png",32,32,16,0);
     /*main game loop*/
 
-    // * stuff for title screen * //
-    title = gf2d_sprite_load_image("images/backgrounds/title_screen.png");
     int onTitle = 1;
     int inGame = 0;
     int inPause = 0;
+
+    // * stuff for title screen * //
+    title = gf2d_sprite_load_image("images/backgrounds/title_screen.png");
     pause = gf2d_sprite_load_image("images/pause.png");
-
-    // * players and enemies are positioned relative to world * //
-    enemy = spider_new(vector2d(850, 600));
-    enemy = plant_new(vector2d(1700, 275));
-    enemy = mole_new(vector2d(1824, 1024));
-    enemy = dragon_new(vector2d(1300, 344));
-    enemy = bat_new(vector2d(400, 150));
-    enemy = bat_new(vector2d(1380, 1200));
-
-    // * world interactables * //
-    interactable = chest_new(vector2d(930, 1156));
-    interactable = boulder_new(vector2d(1408, 896));
-
-    interactable = spikes_new(vector2d(512, 1216));
-    interactable = spikes_new(vector2d(576, 1216));
-    interactable = spikes_new(vector2d(640, 1216));
-
-    interactable = totem_new(vector2d(224, 1216));
-
-    interactable = gold_new(vector2d(350, 1216));
-    interactable = gold_new(vector2d(1000, 450));
-
-    shop = shop_new(vector2d(2150, 1400));
-
-    boss = bullworm_new(vector2d(1975, 1822));
-    boss = armadillo_new(vector2d(1600, 2434));
-    boss = dragonfly_new(vector2d(1875, 3010));
-
-    // * DRAW THE PLAYER LAST * //
-     player = player_new(vector2d(1250, 1175));
-    //player = player_new(vector2d(900, 200));
+    level = level_load("config/test.level");
 
     // * Music system is a WIP * //
+    sound_t = gfc_sound_load("audio/bgm/super pitfall 07.mp3", 1, 1);
     sound = gfc_sound_load("audio/bgm/20. Mines A.mp3", 1, 1);
+    gfc_sound_play(sound_t, 0, 0.3, -1, -1);
 
     // graphics -> sprites -> entities -> things
     while(!done)
@@ -125,19 +96,43 @@ int main(int argc, char * argv[])
         mf+=0.1;
         if (mf >= 16.0) mf = 0;
 
-        // * handle title screen * //
+        // * boot up to title screen * //
         if (onTitle)
         {
             gf2d_sprite_draw_image(title, vector2d(0, 0));
+
+            // * load level + entities once you start the game * //
             if (keys[SDL_SCANCODE_RETURN])
             {
+                level_set_active_level(level);
+
+                entity_manager_init(1024);
+                enemy = spider_new(vector2d(850, 600));
+                enemy = plant_new(vector2d(1700, 275));
+                enemy = mole_new(vector2d(1824, 1024));
+                enemy = dragon_new(vector2d(1200, 344));
+                enemy = bat_new(vector2d(400, 150));
+                enemy = bat_new(vector2d(1380, 1200));
+                interactable = chest_new(vector2d(930, 1156));
+                interactable = boulder_new(vector2d(1408, 896));
+                interactable = spikes_new(vector2d(512, 1216));
+                interactable = spikes_new(vector2d(576, 1216));
+                interactable = spikes_new(vector2d(640, 1216));
+                interactable = totem_new(vector2d(224, 1216));
+                interactable = gold_new(vector2d(350, 1216));
+                interactable = gold_new(vector2d(800, 450));
+                shop = shop_new(vector2d(2150, 1400));
+                boss = bullworm_new(vector2d(1975, 1822));
+                boss = armadillo_new(vector2d(1600, 2434));
+                boss = dragonfly_new(vector2d(1875, 3010));
+                player = player_new(vector2d(1250, 1175));
+
+                // * leave title screen * //
                 onTitle = 0;
-                gfc_sound_play(sound, 999, 0.15, -1, -1);
+                inGame = 1;
+                gfc_sound_play(sound, 999, 0.25, -1, -1);
             }
         }
-
-        // * take player to game after user input * //
-        else inGame = 1;
 
         if (inGame)
         {
@@ -162,6 +157,10 @@ int main(int argc, char * argv[])
                     onTitle = 1;
                     inGame = 0;
                     inPause = 0;
+                    // reset level and entities
+                    entity_free_all();
+                    level_free(level_get_active_level());
+                    level = level_load("config/test.level");
                 }
                 if ((keys)[SDL_SCANCODE_N]) 
                 {
@@ -185,9 +184,7 @@ int main(int argc, char * argv[])
     }
     FILE* file;
     file = fopen("stats.txt", "w");
-    fprintf(file, "Spelunky walked at a speed of %f", player->speed);
-    level_free(level_get_active_level());
-    entity_free_all();
+    //fprintf(file, "Spelunky walked at a speed of %f", player->speed);
 
     //gfc_sound_free(sound);
     slog("---==== END ====---");

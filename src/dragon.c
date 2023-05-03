@@ -52,15 +52,21 @@ void dragon_draw(Entity* ent)
     // * player shape - used for testing purposes * //
     vector2d_add(ent->rect, ent->rect, camera_get_draw_offset());
     gf2d_draw_rect(ent->rect, gfc_color8(255, 255, 255, 255));
-
 }
 
 void dragon_think(Entity* ent)
 {
-    Vector2D a, b;
+    Vector2D a, b, p;
 
     a = ent->position;
     b = boulder_get_position();
+    p = player_get_position();
+
+    float p_dist = vector2d_magnitude_between(a, p);
+    /*if (p_dist < 300)
+    {
+        slog("shooting fire");
+    }*/
 
     // * WHAT IF DRAGON GETS SQUASHED BY BOULDER * //
     float dist = vector2d_magnitude_between(a, b);

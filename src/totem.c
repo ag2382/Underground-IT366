@@ -1,6 +1,7 @@
 #include "simple_logger.h"
 
 #include "gfc_shape.h"
+#include "gfc_audio.h"
 #include "gf2d_draw.h"
 
 #include "totem.h"
@@ -10,6 +11,7 @@
 
 static Entity *totem = NULL;
 Vector2D totem_screen = { 0 };
+Sound* sfx;
 
 Entity* totem_new(Vector2D position)
 {
@@ -25,6 +27,7 @@ Entity* totem_new(Vector2D position)
     ent->drawOffset = vector2d(64, 74);
     ent->speed = 2.5;
     vector2d_copy(ent->position, position);
+    check = false;
 
     return ent;
 }
@@ -80,7 +83,8 @@ void totem_think(Entity* ent)
     {
         check = true;
         slog("checkpoint reached");
-
+        sfx = gfc_sound_load("audio/sfx/totem.mp3", 1, 1);
+        gfc_sound_play(sfx, 0, 0.6, 3, -1);
     }
 }
 

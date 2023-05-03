@@ -1,11 +1,17 @@
 #include "simple_logger.h"
+
+#include "fireball.h"
 #include "plant.h"
+
 #include "level.h"
 #include "boulder.h"
 #include "camera.h"
+#include "player.h"
 
 static Entity* plant = NULL;
 Vector2D plant_screen = { 0 };
+int fireball_active;
+float fireball_cooldown;
 
 Entity* plant_new(Vector2D position)
 {
@@ -38,30 +44,46 @@ void plant_draw(Entity* ent)
 
     vector2d_sub(plant_screen, ent->position, camera);
 
-    gf2d_sprite_draw(
-        gf2d_sprite_load_all(
-            "images/enemies/plant_small.png",
-            64,
-            64,
-            1,
-            0),		// draw the sprite
-        plant_screen,				// to its designated screen position
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        (int)ent->frame);
+    gf2d_sprite_draw_image(gf2d_sprite_load_image("images/enemies/plant_small.png"), plant_screen);
+
+    ent->rect = ent->shape.s.r;
+    ent->rect = ent->shape.s.r;
+    ent->rect.x += ent->position.x;
+    ent->rect.y += ent->position.y;
 }
 
 void plant_think(Entity* ent)
 {
-    // * WHAT IF PLANT GETS SQUASHED BY BOULDER * //
-    Vector2D a, b;
-
+    Vector2D a, b, p;
     a = ent->position;
     b = boulder_get_position();
+    p = player_get_position();
 
+    float p_dist = vector2d_magnitude_between(a, p);
+    // * MAKE THE PLANT SHOOT FIRE * //
+    if (p_dist < 500)
+    {
+        if (!fireball_active)
+        {
+            fireball_active = 1; 
+            fireball_new(ent->position);
+        }
+        else
+        {
+            fireball_cooldown += 0.1;
+            if (fireball_cooldown >= 30)
+            {
+                fireball_active = 0;
+                fireball_cooldown = 0;
+            }
+        }
+    }
+    else
+    {
+        fireball_cooldown = 0;
+    }
+
+    // * WHAT IF PLANT GETS SQUASHED BY BOULDER * //
     float dist = vector2d_magnitude_between(a, b);
     if (dist < 64)
     {

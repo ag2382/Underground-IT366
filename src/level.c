@@ -141,18 +141,16 @@ void level_build_clip_space(Level* level)
     }
 }
 
-// * BUILD THE LEVEL AS YOU GO * //
-void level_build(Level* level)
+void level_remove_clip_space(Level* level)
 {
+    
+}
+
+// * create the surface of the level as you go * //
+void level_create_surface(Level* level)
+{
+    if (!level) return;
     int i, j;
-    if (!level)return;
-    if (level->tileLayer)gf2d_sprite_free(level->tileLayer);
-    level->tileLayer = gf2d_sprite_new();
-    if (!level->tileLayer)
-    {
-        slog("failed to create sprite for tileLayer");
-        return;
-    }
     // if there is a default surface, free it
     if (level->tileLayer->surface)SDL_FreeSurface(level->tileLayer->surface);
     //create a surface the size we need it
@@ -185,7 +183,21 @@ void level_build(Level* level)
                 level->tileLayer->surface);
         }
     }
-    //convert it to a texture
+}
+
+void level_build(Level* level)
+{
+    if (!level)return;
+    if (level->tileLayer)gf2d_sprite_free(level->tileLayer);
+    level->tileLayer = gf2d_sprite_new();
+    if (!level->tileLayer)
+    {
+        slog("failed to create sprite for tileLayer");
+        return;
+    }
+
+    // * create the level's surface, then convert it to a texture * //
+    level_create_surface(level);
     level->tileLayer->texture = SDL_CreateTextureFromSurface(gf2d_graphics_get_renderer(), level->tileLayer->surface);
     SDL_SetTextureBlendMode(level->tileLayer->texture, SDL_BLENDMODE_BLEND);
     SDL_UpdateTexture(level->tileLayer->texture,
@@ -243,39 +255,18 @@ int get_level_tile(Level* level, int x, int y) {
 }
 
 // update the level as you dig through the world
-// delete tiles as you go through the level
 void level_removeTile(Level* level, int x, int y)
 {
     if (!level) return;
+
     // Retrieve tile registered from pickaxe contact //
     if (get_level_tile(level, x, y) > 0)
     {
         slog("terrain detected");
-        level->tileMap[(y * (int)level->mapSize.x) + x] = 0;
+        level->tileMap[(y * (int)level->mapSize.x) + x] = 0;    // change value to 0 in JSON file->NO TILE
     }
-
-    //SDL_UnlockTexture(level->tileLayer->texture);
-    
-    // BUGGY TILE REMOVAL //
-    if (level->tileLayer->surface) SDL_FreeSurface(level->tileLayer->surface);
-    level->tileLayer->surface = gf2d_graphics_create_surface(level->tileSize.x * level->mapSize.x, level->tileSize.y * level->mapSize.y);
-    //level->tileLayer->surface = gf2d_graphics_screen_convert(&level->tileLayer->surface);
-
-    // redraw surface
-    for (int j = 0; j < level->mapSize.y; j++)//j is row
-    {
-        for (int i = 0; i < level->mapSize.x; i++)// i is column
-        {
-            if (level->tileMap[(j * (int)level->mapSize.x) + i] == get_level_tile(level, x, y))continue; //skip zero
-            gf2d_sprite_draw_to_surface(
-                level->tileSet,
-                vector2d(i * level->tileSize.x, j * level->tileSize.y),
-                NULL,
-                NULL,
-                level->tileMap[(j * (int)level->mapSize.x) + i] - 1,
-                level->tileLayer->surface);
-        }
-    }
+    // Redraw with the loose tile in mind
+    level_create_surface(level);
 
     //level->tileLayer->texture = SDL_CreateTextureFromSurface(gf2d_graphics_get_renderer(), level->tileLayer->surface);
     SDL_SetTextureBlendMode(level->tileLayer->texture, SDL_BLENDMODE_BLEND);
@@ -284,31 +275,8 @@ void level_removeTile(Level* level, int x, int y)
         level->tileLayer->surface->pixels,
         level->tileLayer->surface->pitch);
 
-    //if (get_level_tile(level_get_active_level(), x, y) == 1)
-    //{
-	   // //level_get_active_level()->tileMap[(tileY * (int)level_get_active_level()->mapSize.x) + tileX] = 0;
-	   // slog("dirt");
-    //}
-    //if (get_level_tile(level_get_active_level(), x, y) == 2)
-    //{
-	   // slog("sand");
-    //}
-    //if (get_level_tile(level_get_active_level(), x, y) == 3)
-    //{
-	   // slog("stone");
-    //}
-    //if (get_level_tile(level_get_active_level(), x, y) == 4)
-    //{
-	   // slog("malachite");
-    //}
-    //if (get_level_tile(level_get_active_level(), x, y) == 5)
-    //{
-	   // slog("quartz-gold");
-    //}
-
-
-    // change value to 0 in JSON file -> NO TILE
-    // remove clip from the list
+    // * REBUILD CLIP SPACE with detected tile in mind * //
+    // that will be a later problem
 }
 
 /*eol@eof*/

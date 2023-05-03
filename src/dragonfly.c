@@ -11,6 +11,7 @@
 
 static Entity* dragonfly = NULL;
 Vector2D dragonfly_screen = { 0 };
+//State st;
 
 Entity* dragonfly_new(Vector2D position)
 {
@@ -26,6 +27,8 @@ Entity* dragonfly_new(Vector2D position)
 	vector2d_copy(ent->position, position);
 
 	dragonfly = ent;
+	//st = IDLE;
+
 	return ent;
 }
 
@@ -54,6 +57,8 @@ void dragonfly_think(Entity* ent)
 	if (dist < 500)
 	{
 		slog("activate");
+		ent->position.x -= 0.25;
+		ent->position.y += 0.25;
 	}
 }
 
